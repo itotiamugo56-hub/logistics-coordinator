@@ -7,6 +7,7 @@ import '../services/haptic_service.dart';
 import '../widgets/inline_feedback.dart';
 import '../widgets/crystal_button.dart';
 import '../widgets/physics_sheet.dart';
+import '../widgets/success_animation.dart';
 
 class AlertsManager extends StatefulWidget {
   final String branchId;
@@ -149,6 +150,8 @@ class _AlertsManagerState extends State<AlertsManager> with OptimisticOperation<
         widget.onRefresh();
         _loadAlerts();
         HapticService.trigger(HapticIntensity.light, context: context);
+        // Show success animation
+        SuccessAnimation.show(context, message: 'Alert Posted');
         _showFeedback('Alert posted successfully', FeedbackType.success);
       },
       onError: (error) {

@@ -12,6 +12,7 @@ import 'my_flares_screen.dart';
 import 'help_resources_screen.dart';
 import 'profile_screen.dart';
 import '../widgets/crystal_button.dart';
+import '../widgets/success_animation.dart';
 import '../services/haptic_service.dart';
 import '../main.dart'; // For MotionPreferences
 
@@ -40,6 +41,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   bool _isLoadingLocation = true;
   String? _locationError;
   
+  // Animation for tab content transition
+  int _previousTabIndex = 0;
+  
   @override
   void initState() {
     super.initState();
@@ -57,6 +61,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   
   void _onTabChanged() {
     if (_tabController.indexIsChanging) {
+      _previousTabIndex = DashboardTab.values.indexOf(_currentTab);
       setState(() {
         _currentTab = DashboardTab.values[_tabController.index];
       });
@@ -158,6 +163,13 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     
     if (result != null && mounted) {
       await HapticService.trigger(HapticIntensity.light, context: context);
+      
+      // Show success animation with checkmark
+      await SuccessAnimation.show(
+        context,
+        message: 'Signal Flare Sent',
+      );
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Signal Flare sent! ID: ${result['flare_id'].toString().substring(0, 8)}...'),
@@ -187,7 +199,24 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     }
   }
   
-  IconData _getTabIcon(DashboardTab tab) {
+  /// Get filled icon (when selected)
+  IconData _getFilledIcon(DashboardTab tab) {
+    switch (tab) {
+      case DashboardTab.map:
+        return Icons.map;
+      case DashboardTab.schedule:
+        return Icons.calendar_today;
+      case DashboardTab.transport:
+        return Icons.directions_bus;
+      case DashboardTab.flares:
+        return Icons.warning_amber;
+      case DashboardTab.profile:
+        return Icons.person;
+    }
+  }
+  
+  /// Get outlined icon (when not selected)
+  IconData _getOutlinedIcon(DashboardTab tab) {
     switch (tab) {
       case DashboardTab.map:
         return Icons.map_outlined;
@@ -233,28 +262,64 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     return Scaffold(
       body: Column(
         children: [
-          // Custom App Bar with location status
+          // Glassmorphic App Bar - 2026 Stripe/Apple Grade
           Container(
             padding: EdgeInsets.only(
               top: MediaQuery.of(context).padding.top,
-              left: 16,
-              right: 16,
-              bottom: 8,
+              left: 20,
+              right: 20,
+              bottom: 12,
             ),
             decoration: BoxDecoration(
-              color: Theme.of(context).scaffoldBackgroundColor,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withOpacity(0.98),
+                  Colors.white.withOpacity(0.96),
+                ],
+              ),
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(24),
+                bottomRight: Radius.circular(24),
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 4,
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 16,
                   offset: const Offset(0, 2),
                 ),
               ],
             ),
             child: Row(
               children: [
-                const Icon(Icons.church, color: M3Colors.primary),
-                const SizedBox(width: 12),
+                // Animated icon with subtle pulse
+                TweenAnimationBuilder(
+                  tween: Tween<double>(begin: 1.0, end: 1.0),
+                  duration: const Duration(milliseconds: 1500),
+                  builder: (context, double scale, child) {
+                    return Transform.scale(
+                      scale: scale,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [M3Colors.primary, M3Colors.tertiary],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.church,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -263,10 +328,12 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                         'Zero-Trust Logistics',
                         style: TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.3,
                           color: M3Colors.onSurface,
                         ),
                       ),
+                      const SizedBox(height: 2),
                       if (_isLoadingLocation)
                         const Text(
                           'Acquiring GPS...',
@@ -278,9 +345,25 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                           style: const TextStyle(fontSize: 11, color: M3Colors.error),
                         )
                       else
-                        Text(
-                          'Ready • ${_currentPosition?.latitude.toStringAsFixed(4)}°, ${_currentPosition?.longitude.toStringAsFixed(4)}°',
-                          style: const TextStyle(fontSize: 11, color: M3Colors.onSurfaceVariant),
+                        Row(
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: M3Colors.success,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Ready • ${_currentPosition?.latitude.toStringAsFixed(4)}°, ${_currentPosition?.longitude.toStringAsFixed(4)}°',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: M3Colors.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
                         ),
                     ],
                   ),
@@ -289,7 +372,11 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                   icon: const Icon(Icons.refresh, size: 20),
                   onPressed: _getCurrentLocation,
                   tooltip: 'Refresh location',
+                  style: IconButton.styleFrom(
+                    backgroundColor: M3Colors.surfaceVariant.withOpacity(0.5),
+                  ),
                 ),
+                const SizedBox(width: 4),
                 IconButton(
                   icon: const Icon(Icons.logout, size: 20),
                   onPressed: () async {
@@ -300,27 +387,28 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                     }
                   },
                   tooltip: 'Logout',
+                  style: IconButton.styleFrom(
+                    backgroundColor: M3Colors.surfaceVariant.withOpacity(0.5),
+                  ),
                 ),
               ],
             ),
           ),
           
-          // Tab Bar
+          // Sleek Underline Tab Bar with Animated Icons
           Container(
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: M3Colors.outline.withOpacity(0.2)),
-              ),
-            ),
+            margin: const EdgeInsets.only(top: 8),
             child: TabBar(
               controller: _tabController,
               isScrollable: true,
               dividerColor: Colors.transparent,
               indicatorColor: M3Colors.primary,
+              indicatorWeight: 3,
+              indicatorSize: TabBarIndicatorSize.label,
               labelColor: M3Colors.primary,
               unselectedLabelColor: M3Colors.onSurfaceVariant,
               labelStyle: const TextStyle(
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
               unselectedLabelStyle: const TextStyle(
@@ -329,24 +417,60 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               ),
               splashFactory: reduceMotion ? NoSplash.splashFactory : null,
               tabs: DashboardTab.values.map((tab) {
+                final isSelected = _currentTab == tab;
                 return Tab(
-                  icon: Icon(_getTabIcon(tab)),
+                  icon: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (Widget child, Animation<double> animation) {
+                      return ScaleTransition(
+                        scale: animation,
+                        child: FadeTransition(
+                          opacity: animation,
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: Icon(
+                      isSelected ? _getFilledIcon(tab) : _getOutlinedIcon(tab),
+                      key: ValueKey(isSelected),
+                      size: isSelected ? 20 : 18,
+                    ),
+                  ),
                   text: _getTabTitle(tab),
                 );
               }).toList(),
             ),
           ),
           
-          // Tab Content
+          // Animated Tab Content with spring transition
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: DashboardTab.values.map((tab) => _buildTabContent(tab)).toList(),
+            child: AnimatedSwitcher(
+              duration: reduceMotion ? Duration.zero : const Duration(milliseconds: 300),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0.05, 0),
+                      end: Offset.zero,
+                    ).animate(CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    )),
+                    child: child,
+                  ),
+                );
+              },
+              child: _buildTabContent(_currentTab),
             ),
           ),
         ],
       ),
-      // Contextual Flare FAB - only appears on Map, Today, and Transit tabs
+      // Contextual Flare FAB with modern styling
       floatingActionButton: _shouldShowFlareFAB()
           ? FloatingActionButton.extended(
               onPressed: _isLoadingLocation || _locationError != null ? null : _sendFlare,
@@ -354,6 +478,10 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               label: const Text('SIGNAL FLARE'),
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(40),
+              ),
             )
           : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,

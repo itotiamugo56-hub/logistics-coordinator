@@ -9,6 +9,7 @@ import '../services/haptic_service.dart';
 import '../widgets/inline_feedback.dart';
 import '../widgets/crystal_button.dart';
 import '../widgets/physics_sheet.dart';
+import '../widgets/success_animation.dart';
 
 class PhotoManager extends StatefulWidget {
   final String branchId;
@@ -143,6 +144,7 @@ class _PhotoManagerState extends State<PhotoManager> with OptimisticOperation<Ma
             widget.onRefresh();
             _loadPhotos();
             HapticService.trigger(HapticIntensity.light, context: context);
+            SuccessAnimation.show(context, message: 'Photo Added');
             _showFeedback('Photo added successfully', FeedbackType.success);
           },
           onError: (error) {

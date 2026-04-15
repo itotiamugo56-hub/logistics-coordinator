@@ -1,20 +1,19 @@
-import 'dart:math';
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/branch.dart';
 import '../services/branch_service.dart';
 import '../services/haptic_service.dart';
 import '../main.dart';
 import '../widgets/physics_sheet.dart';
 import '../widgets/crystal_button.dart';
+import '../widgets/skeleton_loader.dart';
 
 // Material Design 3 Color Scheme - Consistent with app
 class M3Colors {
@@ -64,7 +63,6 @@ class GlobalPickupPoint {
     this.distanceKm,
   });
 
-  /// Calculate walking time (approx 12 min per km)
   String get walkingTime {
     if (distanceKm == null) return '';
     int minutes = (distanceKm! * 12).round();
@@ -74,7 +72,7 @@ class GlobalPickupPoint {
   }
 }
 
-/// Premium Pickup Point Card - Apple/Stripe grade
+/// Premium Pickup Point Card - Stripe/Apple grade
 class PickupPointCard extends StatelessWidget {
   final GlobalPickupPoint point;
   final VoidCallback onTap;
@@ -92,7 +90,10 @@ class PickupPointCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        HapticService.trigger(HapticIntensity.light, context: context);
+        onTap();
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
@@ -258,7 +259,10 @@ class PickupPointCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: CrystalButton(
-                          onPressed: onDirections,
+                          onPressed: () {
+                            HapticService.trigger(HapticIntensity.medium, context: context);
+                            onDirections?.call();
+                          },
                           label: 'DIRECTIONS',
                           variant: CrystalButtonVariant.outlined,
                           icon: Icons.directions,
@@ -268,7 +272,10 @@ class PickupPointCard extends StatelessWidget {
                       if (point.transportManagerPhone != null)
                         Expanded(
                           child: CrystalButton(
-                            onPressed: onCall,
+                            onPressed: () {
+                              HapticService.trigger(HapticIntensity.medium, context: context);
+                              onCall?.call();
+                            },
                             label: 'CALL',
                             variant: CrystalButtonVariant.filled,
                             icon: Icons.phone,
@@ -281,6 +288,83 @@ class PickupPointCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Illustrated Empty State for Transportation Hub
+class TransportEmptyState extends StatelessWidget {
+  final int radiusKm;
+  final VoidCallback onIncreaseRadius;
+  final VoidCallback onRetry;
+
+  const TransportEmptyState({
+    super.key,
+    required this.radiusKm,
+    required this.onIncreaseRadius,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: M3Colors.surfaceVariant,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.directions_bus,
+              size: 48,
+              color: M3Colors.outline,
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'No Pickup Points',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: M3Colors.onSurface,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              'No pickup points within $radiusKm km. Try increasing the radius or check your connection.',
+              style: TextStyle(
+                fontSize: 13,
+                color: M3Colors.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CrystalButton(
+                onPressed: onIncreaseRadius,
+                label: 'INCREASE RADIUS',
+                variant: CrystalButtonVariant.outlined,
+                icon: Icons.radar,
+              ),
+              const SizedBox(width: 12),
+              CrystalButton(
+                onPressed: onRetry,
+                label: 'RETRY',
+                variant: CrystalButtonVariant.outlined,
+                icon: Icons.refresh,
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -313,6 +397,12 @@ class PickupPointDetailSheet extends StatelessWidget {
             decoration: BoxDecoration(
               color: M3Colors.outline,
               borderRadius: BorderRadius.circular(2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 2,
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 16),
@@ -507,21 +597,28 @@ class PickupPointDetailSheet extends StatelessWidget {
   }
   
   void _launchPhone(String phone) async {
+    await HapticService.trigger(HapticIntensity.medium, context: null);
     final Uri uri = Uri(scheme: 'tel', path: phone);
     if (await canLaunchUrl(uri)) await launchUrl(uri);
   }
   
   void _openDirections(GlobalPickupPoint point) async {
+    await HapticService.trigger(HapticIntensity.medium, context: null);
     if (point.latitude != null && point.longitude != null) {
       final url = Uri.parse(
         'https://www.google.com/maps/dir/?api=1&destination=${point.latitude},${point.longitude}'
+      );
+      if (await canLaunchUrl(url)) await launchUrl(url);
+    } else if (point.branchAddress.isNotEmpty) {
+      final url = Uri.parse(
+        'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(point.branchAddress)}'
       );
       if (await canLaunchUrl(url)) await launchUrl(url);
     }
   }
 }
 
-/// Radius selector chip row - Apple-style segmented control
+/// Radius selector - Apple-style segmented control
 class RadiusSelector extends StatelessWidget {
   final int selectedRadius;
   final List<int> radiusOptions;
@@ -594,7 +691,6 @@ class _TransportationHubScreenState extends State<TransportationHubScreen> {
   int _radiusKm = 5;
   final List<int> _radiusOptions = [2, 5, 10, 20];
   
-  // For debouncing radius changes
   Timer? _debounceTimer;
   
   @override
@@ -614,6 +710,7 @@ class _TransportationHubScreenState extends State<TransportationHubScreen> {
   }
   
   Future<void> _getLocationAndLoad() async {
+    if (!mounted) return;
     setState(() {
       _isLoadingLocation = true;
       _error = null;
@@ -622,11 +719,13 @@ class _TransportationHubScreenState extends State<TransportationHubScreen> {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        setState(() {
-          _error = 'Location services disabled. Enable GPS to find pickup points near you.';
-          _isLoadingLocation = false;
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _error = 'Location services disabled. Enable GPS to find pickup points near you.';
+            _isLoadingLocation = false;
+            _isLoading = false;
+          });
+        }
         return;
       }
       
@@ -636,11 +735,13 @@ class _TransportationHubScreenState extends State<TransportationHubScreen> {
       }
       
       if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
-        setState(() {
-          _error = 'Location permission needed to find pickup points near you.';
-          _isLoadingLocation = false;
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _error = 'Location permission needed to find pickup points near you.';
+            _isLoadingLocation = false;
+            _isLoading = false;
+          });
+        }
         return;
       }
       
@@ -648,22 +749,27 @@ class _TransportationHubScreenState extends State<TransportationHubScreen> {
         desiredAccuracy: LocationAccuracy.high,
       ).timeout(const Duration(seconds: 15));
       
-      setState(() {
-        _currentPosition = position;
-        _isLoadingLocation = false;
-      });
+      if (mounted) {
+        setState(() {
+          _currentPosition = position;
+          _isLoadingLocation = false;
+        });
+      }
       
       await _loadAllPickupPoints();
     } catch (e) {
-      setState(() {
-        _error = 'Unable to get your location. Please check GPS settings.';
-        _isLoadingLocation = false;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'Unable to get your location. Please check GPS settings.';
+          _isLoadingLocation = false;
+          _isLoading = false;
+        });
+      }
     }
   }
   
   Future<void> _loadAllPickupPoints() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     
     try {
@@ -710,16 +816,20 @@ class _TransportationHubScreenState extends State<TransportationHubScreen> {
         }
       }
       
-      setState(() {
-        _allPickupPoints = allPoints;
-        _applyRadiusFilter();
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _allPickupPoints = allPoints;
+          _applyRadiusFilter();
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _error = 'Failed to load pickup points. Please try again.';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to load pickup points. Please try again.';
+          _isLoading = false;
+        });
+      }
     }
   }
   
@@ -735,38 +845,52 @@ class _TransportationHubScreenState extends State<TransportationHubScreen> {
   }
   
   void _applyRadiusFilter() {
+    if (!mounted) return;
+    
     if (_currentPosition == null) {
-      _filteredPickupPoints = _allPickupPoints;
+      setState(() {
+        _filteredPickupPoints = _allPickupPoints;
+      });
       return;
     }
     
-    _filteredPickupPoints = _allPickupPoints.where((point) {
+    final filtered = _allPickupPoints.where((point) {
       if (point.distanceKm == null) return true;
       return point.distanceKm! <= _radiusKm;
     }).toList();
     
-    _filteredPickupPoints.sort((a, b) {
+    filtered.sort((a, b) {
       final distA = a.distanceKm ?? double.infinity;
       final distB = b.distanceKm ?? double.infinity;
       return distA.compareTo(distB);
     });
     
-    setState(() {});
+    if (mounted) {
+      setState(() {
+        _filteredPickupPoints = filtered;
+      });
+    }
   }
   
   void _onRadiusChanged(int newRadius) {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
-      setState(() => _radiusKm = newRadius);
-      _applyRadiusFilter();
-      HapticService.trigger(HapticIntensity.light, context: context);
+      if (mounted) {
+        setState(() => _radiusKm = newRadius);
+        _applyRadiusFilter();
+        HapticService.trigger(HapticIntensity.light, context: context);
+      }
     });
   }
   
   Future<void> _refresh() async {
+    if (!mounted) return;
     setState(() => _isRefreshing = true);
     await _loadAllPickupPoints();
-    setState(() => _isRefreshing = false);
+    if (mounted) {
+      setState(() => _isRefreshing = false);
+      await HapticService.trigger(HapticIntensity.light, context: context);
+    }
   }
   
   void _showPickupPointDetails(GlobalPickupPoint point) {
@@ -829,13 +953,16 @@ class _TransportationHubScreenState extends State<TransportationHubScreen> {
               turns: _isRefreshing ? 1.0 : 0.0,
               child: const Icon(Icons.refresh),
             ),
-            onPressed: _isRefreshing ? null : _refresh,
+            onPressed: _isRefreshing ? null : () {
+              HapticService.trigger(HapticIntensity.light, context: context);
+              _refresh();
+            },
           ),
         ],
       ),
       body: Column(
         children: [
-          // Radius selector - Apple-style segmented control
+          // Radius selector
           Container(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
             decoration: BoxDecoration(
@@ -902,88 +1029,28 @@ class _TransportationHubScreenState extends State<TransportationHubScreen> {
           // Main content
           Expanded(
             child: _isLoading
-                ? const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text(
-                          'Finding pickup points near you...',
-                          style: TextStyle(color: M3Colors.onSurfaceVariant),
-                        ),
-                      ],
-                    ),
+                ? ListView.builder(
+                    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: 5,
+                    itemBuilder: (context, index) => const PickupPointCardSkeleton(),
                   )
                 : _error != null
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.location_off,
-                              size: 64,
-                              color: M3Colors.outline,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              _error!,
-                              style: TextStyle(
-                                color: M3Colors.onSurfaceVariant,
-                                fontSize: 14,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 24),
-                            CrystalButton(
-                              onPressed: _getLocationAndLoad,
-                              label: 'TRY AGAIN',
-                              variant: CrystalButtonVariant.outlined,
-                              icon: Icons.refresh,
-                            ),
-                          ],
-                        ),
+                    ? TransportEmptyState(
+                        radiusKm: _radiusKm,
+                        onIncreaseRadius: () => _onRadiusChanged(10),
+                        onRetry: _getLocationAndLoad,
                       )
                     : _filteredPickupPoints.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.directions_bus,
-                                  size: 64,
-                                  color: M3Colors.outline,
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'No pickup points within $_radiusKm km',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: M3Colors.onSurfaceVariant,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Try increasing the search radius',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: M3Colors.outline,
-                                  ),
-                                ),
-                                const SizedBox(height: 24),
-                                CrystalButton(
-                                  onPressed: () => _onRadiusChanged(10),
-                                  label: 'INCREASE RADIUS',
-                                  variant: CrystalButtonVariant.outlined,
-                                  icon: Icons.radar,
-                                ),
-                              ],
-                            ),
+                        ? TransportEmptyState(
+                            radiusKm: _radiusKm,
+                            onIncreaseRadius: () => _onRadiusChanged(10),
+                            onRetry: _getLocationAndLoad,
                           )
                         : RefreshIndicator(
                             onRefresh: _refresh,
                             child: ListView.builder(
+                              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                               padding: const EdgeInsets.all(16),
                               itemCount: _filteredPickupPoints.length,
                               itemBuilder: (context, index) {

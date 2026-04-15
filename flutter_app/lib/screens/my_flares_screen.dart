@@ -8,6 +8,7 @@ import '../services/haptic_service.dart';
 import '../services/api_client.dart';
 import '../widgets/crystal_button.dart';
 import '../widgets/physics_sheet.dart';
+import '../widgets/skeleton_loader.dart';
 import '../main.dart';
 
 // Material Design 3 Color Scheme - Consistent with app
@@ -34,13 +35,11 @@ class M3Colors {
 /// Flare Status Badge Component
 class FlareStatusBadge extends StatelessWidget {
   final String status;
-  final DateTime? assignedAt;
   final int? etaSeconds;
 
   const FlareStatusBadge({
     super.key,
     required this.status,
-    this.assignedAt,
     this.etaSeconds,
   });
 
@@ -60,13 +59,13 @@ class FlareStatusBadge extends StatelessWidget {
   String _getText() {
     switch (status.toLowerCase()) {
       case 'active':
-        return 'AWAITING CLERGY';
+        return 'AWAITING';
       case 'assigned':
         if (etaSeconds != null && etaSeconds! > 0) {
           final minutes = etaSeconds! ~/ 60;
-          return 'CLERGY EN ROUTE • ETA ${minutes}MIN';
+          return 'ETA ${minutes}MIN';
         }
-        return 'CLERGY ASSIGNED';
+        return 'ASSIGNED';
       case 'resolved':
         return 'RESOLVED';
       default:
@@ -77,12 +76,13 @@ class FlareStatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: _getColor().withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: _getColor().withOpacity(0.3),
+          width: 1,
         ),
       ),
       child: Row(
@@ -106,11 +106,11 @@ class FlareStatusBadge extends StatelessWidget {
                 ],
               ),
             ),
-          if (status.toLowerCase() == 'active') const SizedBox(width: 8),
+          if (status.toLowerCase() == 'active') const SizedBox(width: 6),
           Text(
             _getText(),
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w700,
               color: _getColor(),
               letterSpacing: 0.3,
@@ -155,7 +155,7 @@ class ActiveFlareCard extends StatelessWidget {
             M3Colors.errorContainer.withOpacity(0.6),
           ],
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: M3Colors.error.withOpacity(0.3),
           width: 1,
@@ -163,13 +163,13 @@ class ActiveFlareCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: M3Colors.error.withOpacity(0.2),
-            blurRadius: 16,
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -177,48 +177,47 @@ class ActiveFlareCard extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: M3Colors.error.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 800),
                     curve: Curves.easeInOut,
-                    width: 10,
-                    height: 10,
+                    width: 8,
+                    height: 8,
                     decoration: BoxDecoration(
                       color: M3Colors.error,
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
                           color: M3Colors.error.withOpacity(0.8),
-                          blurRadius: 8,
-                          spreadRadius: 4,
+                          blurRadius: 6,
+                          spreadRadius: 3,
                         ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'ACTIVE EMERGENCY',
+                        'ACTIVE',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1,
                           color: M3Colors.error,
                         ),
                       ),
-                      const SizedBox(height: 2),
                       Text(
-                        'Flare sent ${_formatTime(flare.serverReceivedTime)}',
+                        _formatTime(flare.serverReceivedTime),
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 10,
                           color: M3Colors.onSurfaceVariant,
                         ),
                       ),
@@ -227,21 +226,20 @@ class ActiveFlareCard extends StatelessWidget {
                 ),
                 FlareStatusBadge(
                   status: flare.status ?? 'active',
-                  assignedAt: flare.assignedAt,
                   etaSeconds: etaSeconds,
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 12),
             
-            // Status timeline
+            // Status timeline - simplified
             Row(
               children: [
                 _buildTimelineStep(
                   icon: Icons.warning_amber,
-                  label: 'Flare Sent',
+                  label: 'Sent',
                   isCompleted: true,
                   isActive: true,
                 ),
@@ -269,80 +267,60 @@ class ActiveFlareCard extends StatelessWidget {
                 ),
                 _buildTimelineStep(
                   icon: Icons.check_circle,
-                  label: 'Resolved',
+                  label: 'Done',
                   isCompleted: flare.status?.toLowerCase() == 'resolved',
                   isActive: false,
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             
             // ETA display (if assigned)
             if (isAssigned && etaSeconds != null) ...[
-              const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: M3Colors.surface.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
                   children: [
                     const Icon(
                       Icons.timer,
-                      size: 20,
+                      size: 16,
                       color: M3Colors.primary,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Estimated Arrival',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: M3Colors.onSurfaceVariant,
-                            ),
-                          ),
-                          Text(
-                            '${etaSeconds ~/ 60} minutes',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: M3Colors.primary,
-                            ),
-                          ),
-                        ],
+                    const SizedBox(width: 8),
+                    Text(
+                      'ETA: ${etaSeconds ~/ 60} min',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: M3Colors.primary,
                       ),
-                    ),
-                    const Icon(
-                      Icons.directions_car,
-                      size: 24,
-                      color: M3Colors.primary,
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
             ],
             
-            // Cancel button
+            // Action buttons
             Row(
               children: [
                 Expanded(
                   child: CrystalButton(
                     onPressed: onRefresh,
-                    label: 'REFRESH STATUS',
+                    label: 'REFRESH',
                     variant: CrystalButtonVariant.outlined,
                     icon: Icons.refresh,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Expanded(
                   child: CrystalButton(
                     onPressed: onCancel,
-                    label: 'CANCEL FLARE',
+                    label: 'CANCEL',
                     variant: CrystalButtonVariant.filled,
                     icon: Icons.cancel,
                   ),
@@ -364,7 +342,7 @@ class ActiveFlareCard extends StatelessWidget {
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
             color: isCompleted
                 ? (isActive ? M3Colors.primary : M3Colors.success)
@@ -373,15 +351,15 @@ class ActiveFlareCard extends StatelessWidget {
           ),
           child: Icon(
             icon,
-            size: 16,
+            size: 14,
             color: isCompleted ? Colors.white : M3Colors.onSurfaceVariant,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 3),
         Text(
           label,
           style: TextStyle(
-            fontSize: 10,
+            fontSize: 9,
             fontWeight: isCompleted ? FontWeight.w600 : FontWeight.w400,
             color: isCompleted ? M3Colors.primary : M3Colors.onSurfaceVariant,
           ),
@@ -408,7 +386,7 @@ class HistoryFlareCard extends StatelessWidget {
     final flareDay = DateTime(time.year, time.month, time.day);
     
     if (flareDay == today) return 'Today';
-    if (flareDay == today.subtract(const Duration(days: 1))) return 'Yesterday';
+    if (flareDay == today.subtract(const Duration(days: 1))) return 'Yest';
     
     return DateFormat('MMM d').format(time);
   }
@@ -423,12 +401,15 @@ class HistoryFlareCard extends StatelessWidget {
     final etaSeconds = flare.etaSeconds as int?;
     
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        HapticService.trigger(HapticIntensity.light, context: context);
+        onTap();
+      },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
+        margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
           color: M3Colors.surface,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.04),
@@ -438,24 +419,24 @@ class HistoryFlareCard extends StatelessWidget {
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: status == 'resolved'
                       ? M3Colors.success.withOpacity(0.1)
                       : M3Colors.outline.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
                   status == 'resolved' ? Icons.check_circle : Icons.warning_amber,
-                  size: 20,
+                  size: 16,
                   color: status == 'resolved' ? M3Colors.success : M3Colors.warning,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -465,44 +446,44 @@ class HistoryFlareCard extends StatelessWidget {
                         Text(
                           _formatDate(flare.serverReceivedTime),
                           style: const TextStyle(
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: M3Colors.onSurface,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Container(
-                          width: 4,
-                          height: 4,
+                          width: 3,
+                          height: 3,
                           decoration: BoxDecoration(
                             color: M3Colors.outline,
                             shape: BoxShape.circle,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Text(
                           _formatTime(flare.serverReceivedTime),
                           style: const TextStyle(
-                            fontSize: 12,
+                            fontSize: 11,
                             color: M3Colors.onSurfaceVariant,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
-                      'Flare ${flare.id.substring(0, 8)}...',
+                      'Flare ${flare.id.substring(0, 6)}...',
                       style: const TextStyle(
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: FontWeight.w500,
                         color: M3Colors.onSurface,
                       ),
                     ),
                     if (etaSeconds != null && status == 'assigned')
                       Text(
-                        'ETA: ${etaSeconds ~/ 60} minutes',
+                        'ETA: ${etaSeconds ~/ 60}m',
                         style: const TextStyle(
-                          fontSize: 11,
+                          fontSize: 10,
                           color: M3Colors.primary,
                         ),
                       ),
@@ -515,7 +496,7 @@ class HistoryFlareCard extends StatelessWidget {
               ),
               const Icon(
                 Icons.chevron_right,
-                size: 20,
+                size: 16,
                 color: M3Colors.outline,
               ),
             ],
@@ -538,7 +519,7 @@ class FlareDetailSheet extends StatelessWidget {
   });
 
   String _formatFullDate(DateTime time) {
-    return DateFormat('EEEE, MMMM d, yyyy • h:mm a').format(time);
+    return DateFormat('MMM d, h:mm a').format(time);
   }
 
   @override
@@ -577,24 +558,24 @@ class FlareDetailSheet extends StatelessWidget {
                     child: Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(14),
+                          padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: status == 'resolved'
                                 ? M3Colors.success.withOpacity(0.1)
                                 : M3Colors.warning.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(14),
                           ),
                           child: Icon(
                             status == 'resolved'
                                 ? Icons.check_circle
                                 : Icons.warning_amber,
-                            size: 28,
+                            size: 24,
                             color: status == 'resolved'
                                 ? M3Colors.success
                                 : M3Colors.warning,
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 14),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -602,15 +583,15 @@ class FlareDetailSheet extends StatelessWidget {
                               Text(
                                 status == 'resolved' ? 'Resolved' : 'Signal Flare',
                                 style: const TextStyle(
-                                  fontSize: 20,
+                                  fontSize: 18,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 2),
                               Text(
                                 _formatFullDate(flare.serverReceivedTime),
                                 style: TextStyle(
-                                  fontSize: 13,
+                                  fontSize: 12,
                                   color: M3Colors.onSurfaceVariant,
                                 ),
                               ),
@@ -620,7 +601,7 @@ class FlareDetailSheet extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
                   const Divider(),
                   const SizedBox(height: 16),
                   
@@ -632,27 +613,27 @@ class FlareDetailSheet extends StatelessWidget {
                         _buildDetailRow(
                           Icons.assignment_outlined,
                           'Flare ID',
-                          flare.id,
+                          flare.id.substring(0, 12),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 14),
                         _buildDetailRow(
                           Icons.timer_outlined,
-                          'Response Time',
-                          _getResponseTime(),
+                          'Status',
+                          flare.status?.toUpperCase() ?? 'Unknown',
                         ),
                         if (etaSeconds != null && status == 'assigned') ...[
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 14),
                           _buildDetailRow(
                             Icons.directions_car,
                             'ETA',
                             '${etaSeconds ~/ 60} minutes',
                           ),
                         ],
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 14),
                         _buildDetailRow(
                           Icons.security,
                           'Encryption',
-                          'End-to-end encrypted',
+                          'End-to-end',
                           iconColor: M3Colors.success,
                         ),
                       ],
@@ -679,20 +660,6 @@ class FlareDetailSheet extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _getResponseTime() {
-    final received = flare.serverReceivedTime;
-    final resolved = flare.resolvedAt;
-    
-    if (resolved != null) {
-      final duration = resolved.difference(received);
-      final minutes = duration.inMinutes;
-      if (minutes < 60) return '$minutes minutes';
-      return '${minutes ~/ 60}h ${minutes % 60}m';
-    }
-    
-    return 'In progress';
   }
 
   Widget _buildDetailRow(IconData icon, String label, String value, {
@@ -723,7 +690,7 @@ class FlareDetailSheet extends StatelessWidget {
               Text(
                 value,
                 style: const TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w500,
                   color: M3Colors.onSurface,
                 ),
@@ -751,10 +718,17 @@ class EmptyFlaresState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.warning_amber_outlined,
-            size: 64,
-            color: M3Colors.outline,
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: M3Colors.surfaceVariant,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.warning_amber_outlined,
+              size: 48,
+              color: M3Colors.outline,
+            ),
           ),
           const SizedBox(height: 16),
           Text(
@@ -767,7 +741,7 @@ class EmptyFlaresState extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Your emergency requests will appear here',
+            'Tap the red button to send',
             style: TextStyle(
               fontSize: 13,
               color: M3Colors.outline,
@@ -797,13 +771,19 @@ class MyFlaresScreen extends StatefulWidget {
 
 class _MyFlaresScreenState extends State<MyFlaresScreen> {
   bool _isRefreshing = false;
+  bool _isLoading = true;
   Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
-    // Auto-refresh every 30 seconds when there's an active flare
     _startAutoRefresh();
+    // Simulate initial loading
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    });
   }
 
   @override
@@ -833,24 +813,17 @@ class _MyFlaresScreenState extends State<MyFlaresScreen> {
 
   Future<void> _refreshFlares() async {
     setState(() => _isRefreshing = true);
-    // Reload flares by fetching from provider
-    final flareProvider = context.read<FlareProvider>();
-    // Trigger a refresh by calling submitFlare with same location? 
-    // Instead, we'll just reload the provider's data
-    await Future.delayed(const Duration(milliseconds: 500)); // Simulate refresh
-    setState(() => _isRefreshing = false);
-    
-    // Restart auto-refresh timer
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (mounted) {
+      setState(() => _isRefreshing = false);
+      await HapticService.trigger(HapticIntensity.light, context: context);
+    }
     _startAutoRefresh();
   }
 
   Future<void> _cancelFlare(String flareId) async {
     await HapticService.trigger(HapticIntensity.heavy, context: context);
-    
-    // TODO: Implement cancel API call when backend supports it
-    // For now, just refresh
     await _refreshFlares();
-    
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -882,12 +855,11 @@ class _MyFlaresScreenState extends State<MyFlaresScreen> {
 
   void _sendNewFlare() {
     HapticService.trigger(HapticIntensity.medium, context: context);
-    // Navigate to map screen with flare mode active
-    // The FAB is already available on the dashboard
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Tap the red SIGNAL FLARE button to send an emergency alert'),
+        content: Text('Tap the red SIGNAL FLARE button'),
         backgroundColor: M3Colors.primary,
+        duration: Duration(seconds: 2),
       ),
     );
   }
@@ -912,7 +884,10 @@ class _MyFlaresScreenState extends State<MyFlaresScreen> {
               turns: _isRefreshing ? 1.0 : 0.0,
               child: const Icon(Icons.refresh),
             ),
-            onPressed: _isRefreshing ? null : _refreshFlares,
+            onPressed: _isRefreshing ? null : () {
+              HapticService.trigger(HapticIntensity.light, context: context);
+              _refreshFlares();
+            },
           ),
         ],
       ),
@@ -930,11 +905,19 @@ class _MyFlaresScreenState extends State<MyFlaresScreen> {
             (f) => f.status?.toLowerCase() == 'resolved',
           ).toList();
 
+          if (_isLoading) {
+            return ListView.builder(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.all(16),
+              itemCount: 3,
+              itemBuilder: (context, index) => const FlareCardSkeleton(),
+            );
+          }
+
           return RefreshIndicator(
             onRefresh: _refreshFlares,
             child: CustomScrollView(
               slivers: [
-                // Active flare section
                 if (hasActiveFlare && activeFlare != null)
                   SliverToBoxAdapter(
                     child: ActiveFlareCard(
@@ -944,7 +927,6 @@ class _MyFlaresScreenState extends State<MyFlaresScreen> {
                     ),
                   ),
                 
-                // Privacy badge
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -958,7 +940,7 @@ class _MyFlaresScreenState extends State<MyFlaresScreen> {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          'End-to-end encrypted • Only visible to assigned clergy',
+                          'End-to-end encrypted',
                           style: TextStyle(
                             fontSize: 10,
                             color: M3Colors.outline,
@@ -969,7 +951,6 @@ class _MyFlaresScreenState extends State<MyFlaresScreen> {
                   ),
                 ),
                 
-                // History section header
                 if (historyFlares.isNotEmpty)
                   SliverToBoxAdapter(
                     child: Padding(
@@ -1008,7 +989,6 @@ class _MyFlaresScreenState extends State<MyFlaresScreen> {
                     ),
                   ),
                 
-                // History list
                 SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
@@ -1025,7 +1005,6 @@ class _MyFlaresScreenState extends State<MyFlaresScreen> {
                   ),
                 ),
                 
-                // Empty state
                 if (flares.isEmpty)
                   SliverFillRemaining(
                     child: EmptyFlaresState(

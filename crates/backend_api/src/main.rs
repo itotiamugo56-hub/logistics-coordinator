@@ -14,10 +14,19 @@ mod auth;
 mod middleware;
 mod models;
 
-
-// Import handlers directly
+// Import handlers functions directly from the handlers module
 use handlers::{
-    branches, sync, flare, proximity, auth as auth_handlers, clergy
+    get_all_branches, get_nearby_branches,
+    pull_changes, push_changes,
+    submit_flare, get_flare_status,
+    find_nearby_branches,
+    get_me, issue_token_handler,
+    login, create_branch,
+    update_branch, update_service_times,
+    get_photos, add_photo, delete_photo,
+    get_pickup_points, create_pickup_point, update_pickup_point, delete_pickup_point,
+    get_events, create_event, delete_event,
+    get_alerts, create_alert, delete_alert,
 };
 
 #[tokio::main]
@@ -35,45 +44,86 @@ async fn main() {
     
     // Build router
     let app = Router::new()
-        // Public branch endpoints (NO AUTH REQUIRED)
-        .route("/v1/branches", get(branches::get_all_branches))
-        .route("/v1/branches", post(clergy::create_branch))
-        .route("/v1/branches/nearby", post(branches::get_nearby_branches))
-        // Sync endpoints
-        .route("/v1/sync/pull", post(sync::pull_changes))
-        .route("/v1/sync/push", post(sync::push_changes))
-        // Flare endpoints
-        .route("/v1/flare/submit", post(flare::submit_flare))
-        .route("/v1/flare/status/:flare_id", get(flare::get_flare_status))
-        // Proximity endpoints
-        .route("/v1/location/proximity", post(proximity::find_nearby_branches))
-        // Auth endpoints (using auth_handlers)
-        .route("/v1/auth/token/issue", post(auth_handlers::issue_token_handler))
-        // Clergy login endpoint
-        .route("/v1/clergy/login", post(clergy::login))
-        // Clergy management endpoints - Branch Details
-        .route("/v1/clergy/branch/:branch_id", put(clergy::update_branch))
-        // Clergy management endpoints - Service Times
-        .route("/v1/clergy/branch/:branch_id/service-times", put(clergy::update_service_times))
-        // Clergy management endpoints - Photos
-        .route("/v1/clergy/photos/:branch_id", get(clergy::get_photos))
-        .route("/v1/clergy/photos/:branch_id", post(clergy::add_photo))
-        .route("/v1/clergy/photos/:branch_id/:photo_url", delete(clergy::delete_photo))
-        // Clergy management endpoints - Pickup Points
-        .route("/v1/clergy/pickup-points/:branch_id", get(clergy::get_pickup_points))
-        .route("/v1/clergy/pickup-points/:branch_id", post(clergy::create_pickup_point))
-        .route("/v1/clergy/pickup-points/:branch_id/:point_id", put(clergy::update_pickup_point))
-        .route("/v1/clergy/pickup-points/:branch_id/:point_id", delete(clergy::delete_pickup_point))
-        // Clergy management endpoints - Events
-        .route("/v1/clergy/events/:branch_id", get(clergy::get_events))
-        .route("/v1/clergy/events/:branch_id", post(clergy::create_event))
-        .route("/v1/clergy/events/:branch_id/:event_id", delete(clergy::delete_event))
-        // Clergy management endpoints - Alerts
-        .route("/v1/clergy/alerts/:branch_id", get(clergy::get_alerts))
-        .route("/v1/clergy/alerts/:branch_id", post(clergy::create_alert))
-        .route("/v1/clergy/alerts/:branch_id/:alert_id", delete(clergy::delete_alert))
-        // Health check
+        // ============================================================
+        // AUTHENTICATION ENDPOINTS
+        // ============================================================
+        .route("/v1/auth/login", post(login))
+        .route("/v1/auth/me", get(get_me))
+        .route("/v1/auth/token/issue", post(issue_token_handler))
+        
+        // ============================================================
+        // PUBLIC BRANCH ENDPOINTS (NO AUTH REQUIRED)
+        // ============================================================
+        .route("/v1/branches", get(get_all_branches))
+        .route("/v1/branches", post(create_branch))
+        .route("/v1/branches/nearby", post(get_nearby_branches))
+        
+        // ============================================================
+        // SYNC ENDPOINTS
+        // ============================================================
+        .route("/v1/sync/pull", post(pull_changes))
+        .route("/v1/sync/push", post(push_changes))
+        
+        // ============================================================
+        // FLARE ENDPOINTS
+        // ============================================================
+        .route("/v1/flare/submit", post(submit_flare))
+        .route("/v1/flare/status/:flare_id", get(get_flare_status))
+        
+        // ============================================================
+        // PROXIMITY ENDPOINTS
+        // ============================================================
+        .route("/v1/location/proximity", post(find_nearby_branches))
+        
+        // ============================================================
+        // CLERGY LOGIN ENDPOINT (legacy, kept for compatibility)
+        // ============================================================
+        .route("/v1/clergy/login", post(login))
+        
+        // ============================================================
+        // CLERGY MANAGEMENT ENDPOINTS - Branch Details
+        // ============================================================
+        .route("/v1/clergy/branch/:branch_id", put(update_branch))
+        
+        // ============================================================
+        // CLERGY MANAGEMENT ENDPOINTS - Service Times
+        // ============================================================
+        .route("/v1/clergy/branch/:branch_id/service-times", put(update_service_times))
+        
+        // ============================================================
+        // CLERGY MANAGEMENT ENDPOINTS - Photos
+        // ============================================================
+        .route("/v1/clergy/photos/:branch_id", get(get_photos))
+        .route("/v1/clergy/photos/:branch_id", post(add_photo))
+        .route("/v1/clergy/photos/:branch_id/:photo_url", delete(delete_photo))
+        
+        // ============================================================
+        // CLERGY MANAGEMENT ENDPOINTS - Pickup Points
+        // ============================================================
+        .route("/v1/clergy/pickup-points/:branch_id", get(get_pickup_points))
+        .route("/v1/clergy/pickup-points/:branch_id", post(create_pickup_point))
+        .route("/v1/clergy/pickup-points/:branch_id/:point_id", put(update_pickup_point))
+        .route("/v1/clergy/pickup-points/:branch_id/:point_id", delete(delete_pickup_point))
+        
+        // ============================================================
+        // CLERGY MANAGEMENT ENDPOINTS - Events
+        // ============================================================
+        .route("/v1/clergy/events/:branch_id", get(get_events))
+        .route("/v1/clergy/events/:branch_id", post(create_event))
+        .route("/v1/clergy/events/:branch_id/:event_id", delete(delete_event))
+        
+        // ============================================================
+        // CLERGY MANAGEMENT ENDPOINTS - Alerts
+        // ============================================================
+        .route("/v1/clergy/alerts/:branch_id", get(get_alerts))
+        .route("/v1/clergy/alerts/:branch_id", post(create_alert))
+        .route("/v1/clergy/alerts/:branch_id/:alert_id", delete(delete_alert))
+        
+        // ============================================================
+        // HEALTH CHECK
+        // ============================================================
         .route("/health", get(|| async { "OK" }))
+        
         // Middleware
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())
@@ -82,7 +132,6 @@ async fn main() {
     let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
     tracing::info!("Server listening on {}", addr);
     
-    // axum 0.7 uses this API
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }

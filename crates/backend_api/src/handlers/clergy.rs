@@ -243,12 +243,16 @@ pub async fn get_pickup_points(
     };
     
     let rows = stmt.query_map([branch_id], |row| {
+        // Handle NULL latitude/longitude from database (REAL columns)
+        let latitude: Option<f64> = row.get(3)?;
+        let longitude: Option<f64> = row.get(4)?;
+        
         Ok(PickupPoint {
             id: row.get(0)?,
             branch_id: row.get(1)?,
             name: row.get(2)?,
-            latitude: row.get::<_, f64>(3)?,
-            longitude: row.get::<_, f64>(4)?,
+            latitude: latitude.unwrap_or(0.0),
+            longitude: longitude.unwrap_or(0.0),
             pickup_time: row.get(5)?,
             transport_manager_name: row.get(6)?,
             transport_manager_phone: row.get(7)?,
@@ -399,12 +403,16 @@ pub async fn get_events(
     ).unwrap();
     
     let rows = stmt.query_map([branch_id, now_str], |row| {
+        // Handle NULL latitude/longitude from database (REAL columns)
+        let latitude: Option<f64> = row.get(3)?;
+        let longitude: Option<f64> = row.get(4)?;
+        
         Ok(Event {
             id: row.get(0)?,
             branch_id: row.get(1)?,
             name: row.get(2)?,
-            latitude: row.get::<_, f64>(3)?,
-            longitude: row.get::<_, f64>(4)?,
+            latitude: latitude.unwrap_or(0.0),
+            longitude: longitude.unwrap_or(0.0),
             event_date: row.get(5)?,
             description: row.get(6)?,
             is_active: row.get(7)?,

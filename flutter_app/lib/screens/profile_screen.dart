@@ -6,6 +6,7 @@ import '../providers/flare_provider.dart';
 import '../services/haptic_service.dart';
 import '../widgets/crystal_button.dart';
 import '../widgets/physics_sheet.dart';
+import '../widgets/skeleton_loader.dart';
 import 'help_resources_screen.dart';
 import 'my_flares_screen.dart';
 import '../main.dart';
@@ -590,6 +591,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isVerified = true;
   int _flareCount = 0;
   int _branchesVisited = 0;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -598,9 +600,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadUserData() async {
+    setState(() => _isLoading = true);
+    
     // Load from AuthProvider
     final authProvider = context.read<AuthProvider>();
     final flareProvider = context.read<FlareProvider>();
+    
+    // Simulate loading delay for skeleton demo
+    await Future.delayed(const Duration(milliseconds: 500));
     
     // AuthProvider doesn't have name/email - use default values
     // In production, these would come from a User model or API
@@ -610,6 +617,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _flareCount = flareProvider.flares.length;
       // TODO: Load branches visited from API
       _branchesVisited = 5;
+      _isLoading = false;
     });
   }
 
@@ -649,178 +657,210 @@ class _ProfileScreenState extends State<ProfileScreen> {
         elevation: 0,
         centerTitle: false,
       ),
-      body: RefreshIndicator(
-        onRefresh: _loadUserData,
-        child: CustomScrollView(
-          slivers: [
-            // Hero Header with Avatar
-            SliverToBoxAdapter(
-              child: Container(
-                color: M3Colors.surface,
-                child: Column(
-                  children: [
-                    const SizedBox(height: 20),
-                    // Avatar
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            M3Colors.primary,
-                            M3Colors.tertiary,
-                          ],
-                        ),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(
-                          color: M3Colors.surface,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const CircleAvatar(
-                          radius: 45,
-                          backgroundColor: M3Colors.primaryContainer,
-                          child: Icon(
-                            Icons.person,
-                            size: 50,
-                            color: M3Colors.primary,
+      body: _isLoading
+          ? CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(child: const ProfileHeaderSkeleton()),
+                SliverToBoxAdapter(child: const StatsCardSkeleton()),
+                const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                SliverToBoxAdapter(
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      children: List.generate(3, (index) => const MenuItemSkeleton()),
+                    ),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 8)),
+                SliverToBoxAdapter(
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      children: List.generate(3, (index) => const MenuItemSkeleton()),
+                    ),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 8)),
+                SliverToBoxAdapter(
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    child: const MenuItemSkeleton(),
+                  ),
+                ),
+              ],
+            )
+          : RefreshIndicator(
+              onRefresh: _loadUserData,
+              child: CustomScrollView(
+                slivers: [
+                  // Hero Header with Avatar
+                  SliverToBoxAdapter(
+                    child: Container(
+                      color: M3Colors.surface,
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 20),
+                          // Avatar
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  M3Colors.primary,
+                                  M3Colors.tertiary,
+                                ],
+                              ),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: const BoxDecoration(
+                                color: M3Colors.surface,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const CircleAvatar(
+                                radius: 45,
+                                backgroundColor: M3Colors.primaryContainer,
+                                child: Icon(
+                                  Icons.person,
+                                  size: 50,
+                                  color: M3Colors.primary,
+                                ),
+                              ),
+                            ),
                           ),
+                          const SizedBox(height: 12),
+                          // Name
+                          Text(
+                            _memberName,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                              color: M3Colors.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          // Email
+                          Text(
+                            _memberEmail,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: M3Colors.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          // Verification Badge
+                          VerificationBadge(isVerified: _isVerified),
+                          const SizedBox(height: 20),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  // Stats Card
+                  SliverToBoxAdapter(
+                    child: StatsCard(
+                      flareCount: _flareCount,
+                      branchesVisited: _branchesVisited,
+                      onFlareTap: _showMyFlares,
+                    ),
+                  ),
+                  
+                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                  
+                  // Menu Sections
+                  SliverToBoxAdapter(
+                    child: ProfileMenuSection(
+                      items: [
+                        ProfileMenuItem(
+                          icon: Icons.help_outline,
+                          title: 'Help & Resources',
+                          subtitle: 'Emergency procedures and guides',
+                          onTap: _showHelpResources,
                         ),
+                        ProfileMenuItem(
+                          icon: Icons.history,
+                          title: 'My Flares',
+                          subtitle: 'View your emergency history',
+                          onTap: _showMyFlares,
+                        ),
+                        ProfileMenuItem(
+                          icon: Icons.notifications_none,
+                          title: 'Notifications',
+                          subtitle: 'Manage alert preferences',
+                          onTap: () {
+                            // TODO: Notification settings
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  const SliverToBoxAdapter(child: SizedBox(height: 8)),
+                  
+                  // Security Section
+                  SliverToBoxAdapter(
+                    child: SecuritySection(
+                      onRefresh: _loadUserData,
+                    ),
+                  ),
+                  
+                  const SliverToBoxAdapter(child: SizedBox(height: 8)),
+                  
+                  // Support Section
+                  SliverToBoxAdapter(
+                    child: ProfileMenuSection(
+                      items: [
+                        ProfileMenuItem(
+                          icon: Icons.privacy_tip,
+                          title: 'Privacy Policy',
+                          subtitle: 'How we protect your data',
+                          onTap: () {
+                            // TODO: Show privacy policy
+                          },
+                        ),
+                        ProfileMenuItem(
+                          icon: Icons.description,
+                          title: 'Terms of Service',
+                          subtitle: 'Terms and conditions',
+                          onTap: () {
+                            // TODO: Show terms
+                          },
+                        ),
+                        ProfileMenuItem(
+                          icon: Icons.info_outline,
+                          title: 'About',
+                          subtitle: 'Version 1.0.0',
+                          onTap: () {
+                            // TODO: Show about
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  const SliverToBoxAdapter(child: SizedBox(height: 8)),
+                  
+                  // Logout Button
+                  SliverToBoxAdapter(
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: CrystalButton(
+                        onPressed: _showLogoutDialog,
+                        label: 'SIGN OUT',
+                        variant: CrystalButtonVariant.outlined,
+                        icon: Icons.logout,
+                        isExpanded: true,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    // Name
-                    Text(
-                      _memberName,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: M3Colors.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    // Email
-                    Text(
-                      _memberEmail,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: M3Colors.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    // Verification Badge
-                    VerificationBadge(isVerified: _isVerified),
-                    const SizedBox(height: 20),
-                  ],
-                ),
-              ),
-            ),
-            
-            // Stats Card
-            SliverToBoxAdapter(
-              child: StatsCard(
-                flareCount: _flareCount,
-                branchesVisited: _branchesVisited,
-                onFlareTap: _showMyFlares,
-              ),
-            ),
-            
-            const SliverToBoxAdapter(child: SizedBox(height: 16)),
-            
-            // Menu Sections
-            SliverToBoxAdapter(
-              child: ProfileMenuSection(
-                items: [
-                  ProfileMenuItem(
-                    icon: Icons.help_outline,
-                    title: 'Help & Resources',
-                    subtitle: 'Emergency procedures and guides',
-                    onTap: _showHelpResources,
                   ),
-                  ProfileMenuItem(
-                    icon: Icons.history,
-                    title: 'My Flares',
-                    subtitle: 'View your emergency history',
-                    onTap: _showMyFlares,
-                  ),
-                  ProfileMenuItem(
-                    icon: Icons.notifications_none,
-                    title: 'Notifications',
-                    subtitle: 'Manage alert preferences',
-                    onTap: () {
-                      // TODO: Notification settings
-                    },
-                  ),
+                  
+                  const SliverToBoxAdapter(child: SizedBox(height: 32)),
                 ],
               ),
             ),
-            
-            const SliverToBoxAdapter(child: SizedBox(height: 8)),
-            
-            // Security Section
-            SliverToBoxAdapter(
-              child: SecuritySection(
-                onRefresh: _loadUserData,
-              ),
-            ),
-            
-            const SliverToBoxAdapter(child: SizedBox(height: 8)),
-            
-            // Support Section
-            SliverToBoxAdapter(
-              child: ProfileMenuSection(
-                items: [
-                  ProfileMenuItem(
-                    icon: Icons.privacy_tip,
-                    title: 'Privacy Policy',
-                    subtitle: 'How we protect your data',
-                    onTap: () {
-                      // TODO: Show privacy policy
-                    },
-                  ),
-                  ProfileMenuItem(
-                    icon: Icons.description,
-                    title: 'Terms of Service',
-                    subtitle: 'Terms and conditions',
-                    onTap: () {
-                      // TODO: Show terms
-                    },
-                  ),
-                  ProfileMenuItem(
-                    icon: Icons.info_outline,
-                    title: 'About',
-                    subtitle: 'Version 1.0.0',
-                    onTap: () {
-                      // TODO: Show about
-                    },
-                  ),
-                ],
-              ),
-            ),
-            
-            const SliverToBoxAdapter(child: SizedBox(height: 8)),
-            
-            // Logout Button
-            SliverToBoxAdapter(
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: CrystalButton(
-                  onPressed: _showLogoutDialog,
-                  label: 'SIGN OUT',
-                  variant: CrystalButtonVariant.outlined,
-                  icon: Icons.logout,
-                  isExpanded: true,
-                ),
-              ),
-            ),
-            
-            const SliverToBoxAdapter(child: SizedBox(height: 32)),
-          ],
-        ),
-      ),
     );
   }
 }

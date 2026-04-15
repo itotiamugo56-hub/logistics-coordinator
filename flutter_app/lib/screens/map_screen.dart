@@ -15,6 +15,7 @@ import 'branch_details_screen.dart';
 import '../main.dart';
 import '../services/haptic_service.dart';
 import '../widgets/physics_sheet.dart';
+import '../widgets/modern_marker.dart';
 
 // Material Design 3 Color Scheme
 class M3Colors {
@@ -77,188 +78,6 @@ class GpsLockIndicator extends StatelessWidget {
               color: isLocked ? Colors.white : M3Colors.onSurfaceVariant,
               size: 16,
             ),
-    );
-  }
-}
-
-/// Modern pulsing branch marker with ripple ring effect (2026 style)
-class PulsingBranchMarker extends StatefulWidget {
-  final bool isNearby;
-  final bool isNearest;
-  final VoidCallback onTap;
-  final VoidCallback onLongPress;
-  
-  const PulsingBranchMarker({
-    super.key,
-    required this.isNearby,
-    required this.isNearest,
-    required this.onTap,
-    required this.onLongPress,
-  });
-
-  @override
-  State<PulsingBranchMarker> createState() => _PulsingBranchMarkerState();
-}
-
-class _PulsingBranchMarkerState extends State<PulsingBranchMarker> with SingleTickerProviderStateMixin {
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
-  
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    );
-    
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.25).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-    
-    if (widget.isNearby || widget.isNearest) {
-      _pulseController.repeat(reverse: true);
-    }
-  }
-  
-  @override
-  void didUpdateWidget(PulsingBranchMarker oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.isNearby != oldWidget.isNearby || widget.isNearest != oldWidget.isNearest) {
-      if (widget.isNearby || widget.isNearest) {
-        _pulseController.repeat(reverse: true);
-      } else {
-        _pulseController.stop();
-        _pulseController.reset();
-      }
-    }
-  }
-  
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
-  
-  @override
-  Widget build(BuildContext context) {
-    final shouldAnimate = widget.isNearby || widget.isNearest;
-    final markerColor = widget.isNearest ? M3Colors.tertiary : M3Colors.secondary;
-    final iconSize = widget.isNearest ? 22.0 : (widget.isNearby ? 18.0 : 16.0);
-    final padding = widget.isNearby || widget.isNearest ? 8.0 : 6.0;
-    
-    return GestureDetector(
-      onTap: widget.onTap,
-      onLongPress: widget.onLongPress,
-      child: AnimatedBuilder(
-        animation: _pulseController,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: shouldAnimate ? _pulseAnimation.value : 1.0,
-            child: Container(
-              padding: EdgeInsets.all(padding),
-              decoration: BoxDecoration(
-                color: markerColor,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: markerColor.withOpacity(shouldAnimate ? 0.6 : 0.3),
-                    blurRadius: shouldAnimate ? 16 : 8,
-                    spreadRadius: shouldAnimate ? 4 : 0,
-                  ),
-                ],
-              ),
-              child: Icon(
-                Icons.location_on,
-                color: Colors.white,
-                size: iconSize,
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-/// Minimal tooltip that appears above the marker (auto-dismissing)
-class MinimalTooltip extends StatelessWidget {
-  final String branchName;
-  final double distanceKm;
-  
-  const MinimalTooltip({
-    super.key,
-    required this.branchName,
-    required this.distanceKm,
-  });
-
-  String _getWalkingTime() {
-    int minutes = (distanceKm * 12).round();
-    if (minutes < 1) return '<1 min';
-    if (minutes == 1) return '1 min';
-    return '$minutes min';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      elevation: 8,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: M3Colors.surface,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 12,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.location_on, size: 16, color: M3Colors.primary),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  branchName,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                ),
-                Text(
-                  '${distanceKm.toStringAsFixed(1)} km • ${_getWalkingTime()} walk',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: M3Colors.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: M3Colors.surfaceVariant,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.swipe_up,
-                size: 12,
-                color: M3Colors.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -590,12 +409,13 @@ class _MapScreenState extends State<MapScreen> {
   bool _gpsLocked = false;
   bool _hasCenteredMap = false;
   
-  // Tooltip state
-  OverlayEntry? _tooltipOverlay;
-  Timer? _tooltipTimer;
-  
   bool _showRecenterButton = false;
   bool _showNearestDetails = false;
+  
+  // For tooltip state
+  Branch? _selectedBranch;
+  double _selectedDistance = 0;
+  Timer? _tooltipCloseTimer;
 
   static const LatLng _defaultLatLng = LatLng(-1.286389, 36.817223);
   static const double _nearbyRadiusKm = 2.0;
@@ -610,8 +430,34 @@ class _MapScreenState extends State<MapScreen> {
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
-    _removeTooltipOverlay();
+    _tooltipCloseTimer?.cancel();
     super.dispose();
+  }
+
+  void _showBranchTooltip(Branch branch, double distanceKm) {
+    // Cancel any existing timer
+    _tooltipCloseTimer?.cancel();
+    
+    setState(() {
+      _selectedBranch = branch;
+      _selectedDistance = distanceKm;
+    });
+    
+    // Auto-hide after 3 seconds
+    _tooltipCloseTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _selectedBranch = null;
+        });
+      }
+    });
+  }
+
+  void _hideBranchTooltip() {
+    _tooltipCloseTimer?.cancel();
+    setState(() {
+      _selectedBranch = null;
+    });
   }
 
   Future<void> _initialize() async {
@@ -1002,10 +848,12 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _showBranchDetails(Branch branch) {
+    _hideBranchTooltip();
     Navigator.push(context, MaterialPageRoute(builder: (_) => BranchDetailsScreen(branch: branch)));
   }
 
   Future<void> _openDirections(double destLat, double destLng) async {
+    _hideBranchTooltip();
     await HapticService.trigger(HapticIntensity.medium, context: context);
     String originParam = '';
     if (_searchedLocation != null) {
@@ -1016,76 +864,6 @@ class _MapScreenState extends State<MapScreen> {
 
     final url = Uri.parse('https://www.google.com/maps/dir/?api=1$originParam&destination=$destLat,$destLng');
     if (await canLaunchUrl(url)) await launchUrl(url);
-  }
-
-  void _removeTooltipOverlay() {
-    _tooltipTimer?.cancel();
-    _tooltipTimer = null;
-    _tooltipOverlay?.remove();
-    _tooltipOverlay = null;
-  }
-
-  void _showMinimalTooltip(Branch branch, double distanceKm, Offset tapPosition) {
-    _removeTooltipOverlay();
-    
-    final overlayState = Overlay.of(context);
-    _tooltipOverlay = OverlayEntry(
-      builder: (context) => Positioned(
-        left: tapPosition.dx - 100,
-        top: tapPosition.dy - 60,
-        child: GestureDetector(
-          onTap: () {
-            _removeTooltipOverlay();
-            _showExpandableSheet(branch, distanceKm);
-          },
-          child: MinimalTooltip(
-            branchName: branch.name,
-            distanceKm: distanceKm,
-          ),
-        ),
-      ),
-    );
-    overlayState.insert(_tooltipOverlay!);
-    
-    _tooltipTimer = Timer(const Duration(seconds: 3), () {
-      if (mounted) {
-        _removeTooltipOverlay();
-      }
-    });
-  }
-
-  void _showExpandableSheet(Branch branch, double distanceKm) {
-    HapticService.trigger(HapticIntensity.light, context: context);
-    
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => PhysicsSheet(
-        child: BranchPreviewSheet(
-          branch: branch,
-          distanceKm: distanceKm,
-        ),
-        minChildSize: 0.4,
-        maxChildSize: 0.8,
-        initialChildSize: 0.5,
-        onExpanded: () {
-          HapticService.trigger(HapticIntensity.light, context: context);
-        },
-        onCollapsed: () {
-          HapticService.trigger(HapticIntensity.light, context: context);
-        },
-      ),
-    );
-  }
-
-  void _onMarkerTap(Branch branch, Offset tapPosition) {
-    HapticService.trigger(HapticIntensity.light, context: context);
-    double? distance;
-    if (_currentPosition != null) {
-      distance = branch.distanceFrom(_currentPosition!.latitude, _currentPosition!.longitude);
-    }
-    _showMinimalTooltip(branch, distance ?? 0, tapPosition);
   }
 
   void _checkAndShowRecenterButton(LatLng center) {
@@ -1113,6 +891,11 @@ class _MapScreenState extends State<MapScreen> {
         _showRecenterButton = false;
       });
     }
+  }
+
+  void _onMarkerTap(Branch branch, double distanceKm) {
+    HapticService.trigger(HapticIntensity.light, context: context);
+    _showBranchTooltip(branch, distanceKm);
   }
 
   @override
@@ -1152,32 +935,164 @@ class _MapScreenState extends State<MapScreen> {
                         ),
                       ),
                     ]),
+                  // Modern 2026 Markers
                   MarkerLayer(
                     markers: (_filteredBranches.isNotEmpty ? _filteredBranches : _branches).map((branch) {
                       final isNearest = _nearestBranch?.id == branch.id;
                       final isNearby = _isBranchNearby(branch);
+                      final distance = _currentPosition != null 
+                          ? branch.distanceFrom(_currentPosition!.latitude, _currentPosition!.longitude)
+                          : 0.0;
                       
                       return Marker(
                         point: LatLng(branch.latitude, branch.longitude),
-                        child: Builder(
-                          builder: (context) {
-                            return PulsingBranchMarker(
-                              isNearby: isNearby && !_isSearching,
-                              isNearest: isNearest && !_isSearching,
-                              onTap: () {
-                                final RenderBox box = context.findRenderObject() as RenderBox;
-                                final position = box.localToGlobal(Offset.zero);
-                                _onMarkerTap(branch, position);
-                              },
-                              onLongPress: () {},
-                            );
-                          },
+                        child: ModernMarker(
+                          name: branch.name,
+                          address: branch.address,
+                          isNearby: isNearby && !_isSearching,
+                          isNearest: isNearest && !_isSearching,
+                          distanceKm: distance,
+                          onTap: () => _onMarkerTap(branch, distance),
+                          onLongPress: () => _openDirections(branch.latitude, branch.longitude),
+                          showTooltip: false,
+                          onTooltipAction: () => _showBranchDetails(branch),
                         ),
                       );
                     }).toList(),
                   ),
                 ],
               ),
+              
+              // Tooltip rendered as a floating widget at the bottom of the Stack (highest z-index)
+              if (_selectedBranch != null)
+                Positioned(
+                  bottom: 120,
+                  left: 16,
+                  right: 16,
+                  child: GestureDetector(
+                    onTap: () => _showBranchDetails(_selectedBranch!),
+                    child: Material(
+                      elevation: 24,
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: M3Colors.surface,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.25),
+                              blurRadius: 24,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                          border: Border.all(
+                            color: (_selectedBranch?.id == _nearestBranch?.id ? M3Colors.tertiary : M3Colors.primary).withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: (_selectedBranch?.id == _nearestBranch?.id ? M3Colors.tertiary : M3Colors.primary).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Icon(
+                                    _selectedBranch?.id == _nearestBranch?.id ? Icons.star : Icons.location_on,
+                                    size: 18,
+                                    color: _selectedBranch?.id == _nearestBranch?.id ? M3Colors.tertiary : M3Colors.primary,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _selectedBranch?.name ?? '',
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          color: M3Colors.onSurface,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Text(
+                                        _selectedBranch?.address ?? '',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: M3Colors.onSurfaceVariant,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (_selectedDistance > 0) ...[
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Icon(Icons.directions_walk, size: 14, color: M3Colors.primary),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '${_selectedDistance.toStringAsFixed(1)} km away',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: M3Colors.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: () => _showBranchDetails(_selectedBranch!),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(vertical: 10),
+                                      side: const BorderSide(color: M3Colors.primary),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child: const Text('VIEW DETAILS'),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: () => _openDirections(_selectedBranch!.latitude, _selectedBranch!.longitude),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: M3Colors.primary,
+                                      padding: const EdgeInsets.symmetric(vertical: 10),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child: const Text('DIRECTIONS'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              
               Column(
                 children: [
                   Padding(

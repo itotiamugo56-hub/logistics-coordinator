@@ -9,6 +9,7 @@ import '../services/haptic_service.dart';
 import '../widgets/inline_feedback.dart';
 import '../widgets/crystal_button.dart';
 import '../widgets/physics_sheet.dart';
+import '../widgets/success_animation.dart';
 
 class EventsManager extends StatefulWidget {
   final String branchId;
@@ -234,6 +235,8 @@ class _EventsManagerState extends State<EventsManager> with OptimisticOperation<
         // Success haptic (using light for positive feedback)
         HapticService.trigger(HapticIntensity.light, context: context);
         _showFeedback('Event added successfully', FeedbackType.success);
+        // Show success animation
+        SuccessAnimation.show(context, message: 'Event Added');
       },
       onError: (error) {
         setState(() => _isAddingEvent = false);

@@ -8,6 +8,7 @@ import '../services/haptic_service.dart';
 import '../widgets/inline_feedback.dart';
 import '../widgets/crystal_button.dart';
 import '../widgets/physics_sheet.dart';
+import '../widgets/success_animation.dart';
 
 class BranchEditor extends StatefulWidget {
   final Branch branch;
@@ -132,6 +133,13 @@ class _BranchEditorState extends State<BranchEditor> with OptimisticOperation<Ma
         setState(() => _isSaving = false);
         widget.onSaved();
         HapticService.trigger(HapticIntensity.light, context: context);
+        
+        // Show success animation
+        SuccessAnimation.show(
+          context,
+          message: 'Changes Saved',
+        );
+        
         _showFeedback('Branch updated successfully', FeedbackType.success);
         Future.delayed(const Duration(milliseconds: 500), () {
           if (mounted) Navigator.pop(context);

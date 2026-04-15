@@ -1,7 +1,8 @@
-//! Backend API for Zero-Trust Offline Logistics Platform
+//! Backend API Library
 
-pub mod auth;
+// Declare the handlers submodule (this points to src/handlers/mod.rs)
 pub mod handlers;
+pub mod auth;
 pub mod middleware;
 pub mod models;
 

@@ -30,15 +30,23 @@ pub struct TokenResponse {
     pub refresh_limit: u32,
 }
 
-/// Flare submission request
+/// Flare submission request (simplified for anonymous users)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlareSubmission {
-    pub signal_flare_id: Uuid,
+    pub signal_flare_id: Option<Uuid>,
     pub request_location: GeoPoint,
-    pub device_timestamp: DateTime<Utc>,
+    pub device_timestamp: Option<DateTime<Utc>>,
     pub geohash_10: String,
     pub biometric_proof: Option<String>,
-    pub client_public_key: String,
+    pub client_public_key: Option<String>,
+}
+
+/// Simplified flare submission for testing/anonymous users
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SimpleFlareSubmission {
+    pub lat: f64,
+    pub lng: f64,
+    pub geohash10: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,6 +62,10 @@ pub struct FlareResponse {
     pub assigned_branch_id: Option<Uuid>,
     pub server_received_time: DateTime<Utc>,
     pub retry_queue_position: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_anonymous: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
 }
 
 /// Sync request/response

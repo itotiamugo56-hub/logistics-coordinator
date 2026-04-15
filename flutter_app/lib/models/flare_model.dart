@@ -4,6 +4,7 @@ class FlareModel {
   final String id;
   String status;
   String? assignedBranchId;
+  DateTime? assignedAt;  // ADD THIS FIELD
   DateTime serverReceivedTime;
   int retryQueuePosition;
   int? etaSeconds;
@@ -12,6 +13,7 @@ class FlareModel {
     required this.id,
     required this.status,
     this.assignedBranchId,
+    this.assignedAt,  // ADD THIS PARAMETER
     required this.serverReceivedTime,
     required this.retryQueuePosition,
     this.etaSeconds,
@@ -22,6 +24,7 @@ class FlareModel {
       id: json['flare_id'],
       status: json['status'] ?? 'queued',
       assignedBranchId: json['assigned_branch_id'],
+      assignedAt: json['assigned_at'] != null ? DateTime.tryParse(json['assigned_at']) : null,  // ADD THIS
       serverReceivedTime: DateTime.tryParse(json['server_received_time'] ?? '') ?? DateTime.now(),
       retryQueuePosition: json['retry_queue_position'] ?? 0,
       etaSeconds: json['eta_seconds'],
@@ -31,6 +34,9 @@ class FlareModel {
   void updateFromJson(Map<String, dynamic> json) {
     status = json['status'] ?? status;
     assignedBranchId = json['assigned_branch_id'] ?? assignedBranchId;
+    if (json['assigned_at'] != null) {
+      assignedAt = DateTime.tryParse(json['assigned_at']);
+    }
     etaSeconds = json['eta_seconds'] ?? etaSeconds;
   }
   

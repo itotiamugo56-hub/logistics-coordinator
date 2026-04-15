@@ -9,6 +9,7 @@ import '../services/haptic_service.dart';
 import '../widgets/inline_feedback.dart';
 import '../widgets/crystal_button.dart';
 import '../widgets/physics_sheet.dart';
+import '../widgets/success_animation.dart';
 
 class PickupPointsManager extends StatefulWidget {
   final String branchId;
@@ -192,6 +193,13 @@ class _PickupPointsManagerState extends State<PickupPointsManager> with Optimist
         widget.onRefresh();
         _loadPoints();
         HapticService.trigger(HapticIntensity.light, context: context);
+        
+        // Show success animation
+        SuccessAnimation.show(
+          context,
+          message: 'Pickup Point Added',
+        );
+        
         _showFeedback('Pickup point added successfully', FeedbackType.success);
       },
       onError: (error) {

@@ -13,6 +13,7 @@ import '../services/haptic_service.dart';
 import '../main.dart';
 import '../widgets/physics_sheet.dart';
 import '../widgets/crystal_button.dart';
+import '../widgets/skeleton_loader.dart';
 
 // Material Design 3 Color Scheme - Consistent with app
 class M3Colors {
@@ -159,7 +160,10 @@ class EventCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        HapticService.trigger(HapticIntensity.light, context: context);
+        onTap();
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
@@ -349,7 +353,10 @@ class EventCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: CrystalButton(
-                          onPressed: onDirections,
+                          onPressed: () {
+                            HapticService.trigger(HapticIntensity.medium, context: context);
+                            onDirections?.call();
+                          },
                           label: 'DIRECTIONS',
                           variant: CrystalButtonVariant.outlined,
                           icon: Icons.directions,
@@ -358,7 +365,10 @@ class EventCard extends StatelessWidget {
                       const SizedBox(width: 12),
                       Expanded(
                         child: CrystalButton(
-                          onPressed: onTap,
+                          onPressed: () {
+                            HapticService.trigger(HapticIntensity.medium, context: context);
+                            onTap();
+                          },
                           label: 'DETAILS',
                           variant: CrystalButtonVariant.filled,
                           icon: Icons.info_outline,
@@ -371,6 +381,77 @@ class EventCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Illustrated Empty State - Stripe/Apple grade
+class IllustratedEmptyState extends StatelessWidget {
+  final String title;
+  final String message;
+  final IconData icon;
+  final VoidCallback? onAction;
+  final String? actionLabel;
+
+  const IllustratedEmptyState({
+    super.key,
+    required this.title,
+    required this.message,
+    required this.icon,
+    this.onAction,
+    this.actionLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: M3Colors.surfaceVariant,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              size: 48,
+              color: M3Colors.outline,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: M3Colors.onSurface,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              message,
+              style: TextStyle(
+                fontSize: 13,
+                color: M3Colors.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          if (onAction != null && actionLabel != null) ...[
+            const SizedBox(height: 24),
+            CrystalButton(
+              onPressed: onAction,
+              label: actionLabel!,
+              variant: CrystalButtonVariant.outlined,
+              icon: Icons.radar,
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -414,6 +495,12 @@ class EventDetailSheet extends StatelessWidget {
             decoration: BoxDecoration(
               color: M3Colors.outline,
               borderRadius: BorderRadius.circular(2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 2,
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 16),
@@ -571,7 +658,10 @@ class EventDetailSheet extends StatelessWidget {
                       children: [
                         Expanded(
                           child: CrystalButton(
-                            onPressed: () => _openDirections(event),
+                            onPressed: () {
+                              HapticService.trigger(HapticIntensity.medium, context: context);
+                              _openDirections(event);
+                            },
                             label: 'GET DIRECTIONS',
                             variant: CrystalButtonVariant.outlined,
                             icon: Icons.directions,
@@ -645,66 +735,6 @@ class EventDetailSheet extends StatelessWidget {
       );
       if (await canLaunchUrl(url)) await launchUrl(url);
     }
-  }
-}
-
-/// Time-aware empty state message
-class TimeAwareEmptyState extends StatelessWidget {
-  final int radiusKm;
-  final VoidCallback onIncreaseRadius;
-  
-  const TimeAwareEmptyState({
-    super.key,
-    required this.radiusKm,
-    required this.onIncreaseRadius,
-  });
-
-  String _getTimeBasedMessage() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return 'morning';
-    if (hour < 17) return 'afternoon';
-    return 'evening';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.event_busy,
-            size: 64,
-            color: M3Colors.outline,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No events this $_getTimeBasedMessage()',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: M3Colors.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'No events within $radiusKm km. Try increasing the radius.',
-            style: TextStyle(
-              fontSize: 13,
-              color: M3Colors.outline,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          CrystalButton(
-            onPressed: onIncreaseRadius,
-            label: 'INCREASE RADIUS',
-            variant: CrystalButtonVariant.outlined,
-            icon: Icons.radar,
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -800,6 +830,7 @@ class _TodayScheduleScreenState extends State<TodayScheduleScreen> {
   }
   
   Future<void> _getLocationAndLoad() async {
+    if (!mounted) return;
     setState(() {
       _isLoadingLocation = true;
       _error = null;
@@ -808,11 +839,13 @@ class _TodayScheduleScreenState extends State<TodayScheduleScreen> {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        setState(() {
-          _error = 'Location services disabled. Enable GPS to find events near you.';
-          _isLoadingLocation = false;
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _error = 'Location services disabled. Enable GPS to find events near you.';
+            _isLoadingLocation = false;
+            _isLoading = false;
+          });
+        }
         return;
       }
       
@@ -822,11 +855,13 @@ class _TodayScheduleScreenState extends State<TodayScheduleScreen> {
       }
       
       if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
-        setState(() {
-          _error = 'Location permission needed to find events near you.';
-          _isLoadingLocation = false;
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _error = 'Location permission needed to find events near you.';
+            _isLoadingLocation = false;
+            _isLoading = false;
+          });
+        }
         return;
       }
       
@@ -834,22 +869,27 @@ class _TodayScheduleScreenState extends State<TodayScheduleScreen> {
         desiredAccuracy: LocationAccuracy.high,
       ).timeout(const Duration(seconds: 15));
       
-      setState(() {
-        _currentPosition = position;
-        _isLoadingLocation = false;
-      });
+      if (mounted) {
+        setState(() {
+          _currentPosition = position;
+          _isLoadingLocation = false;
+        });
+      }
       
       await _loadAllEvents();
     } catch (e) {
-      setState(() {
-        _error = 'Unable to get your location. Please check GPS settings.';
-        _isLoadingLocation = false;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'Unable to get your location. Please check GPS settings.';
+          _isLoadingLocation = false;
+          _isLoading = false;
+        });
+      }
     }
   }
   
   Future<void> _loadAllEvents() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     
     try {
@@ -905,16 +945,20 @@ class _TodayScheduleScreenState extends State<TodayScheduleScreen> {
         }
       }
       
-      setState(() {
-        _allEvents = allEvents;
-        _applyFilters();
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _allEvents = allEvents;
+          _applyFilters();
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _error = 'Failed to load events. Please try again.';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to load events. Please try again.';
+          _isLoading = false;
+        });
+      }
     }
   }
   
@@ -930,8 +974,12 @@ class _TodayScheduleScreenState extends State<TodayScheduleScreen> {
   }
   
   void _applyFilters() {
+    if (!mounted) return;
+    
     if (_currentPosition == null) {
-      _filteredEvents = _allEvents;
+      setState(() {
+        _filteredEvents = _allEvents;
+      });
       return;
     }
     
@@ -968,24 +1016,32 @@ class _TodayScheduleScreenState extends State<TodayScheduleScreen> {
       return distA.compareTo(distB);
     });
     
-    setState(() {
-      _filteredEvents = filtered;
-    });
+    if (mounted) {
+      setState(() {
+        _filteredEvents = filtered;
+      });
+    }
   }
   
   void _onRadiusChanged(int newRadius) {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
-      setState(() => _radiusKm = newRadius);
-      _applyFilters();
-      HapticService.trigger(HapticIntensity.light, context: context);
+      if (mounted) {
+        setState(() => _radiusKm = newRadius);
+        _applyFilters();
+        HapticService.trigger(HapticIntensity.light, context: context);
+      }
     });
   }
   
   Future<void> _refresh() async {
+    if (!mounted) return;
     setState(() => _isRefreshing = true);
     await _loadAllEvents();
-    setState(() => _isRefreshing = false);
+    if (mounted) {
+      setState(() => _isRefreshing = false);
+      await HapticService.trigger(HapticIntensity.light, context: context);
+    }
   }
   
   void _showEventDetails(GlobalEvent event) {
@@ -1041,7 +1097,10 @@ class _TodayScheduleScreenState extends State<TodayScheduleScreen> {
               turns: _isRefreshing ? 1.0 : 0.0,
               child: const Icon(Icons.refresh),
             ),
-            onPressed: _isRefreshing ? null : _refresh,
+            onPressed: _isRefreshing ? null : () {
+              HapticService.trigger(HapticIntensity.light, context: context);
+              _refresh();
+            },
           ),
         ],
       ),
@@ -1078,92 +1137,35 @@ class _TodayScheduleScreenState extends State<TodayScheduleScreen> {
             ),
           ),
           
-          // Result count header
-          if (!_isLoading && _filteredEvents.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: M3Colors.primaryContainer,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '${_filteredEvents.length}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: M3Colors.primary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'event${_filteredEvents.length != 1 ? 's' : ''} found',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: M3Colors.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          
           // Main content
           Expanded(
             child: _isLoading
-                ? const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text(
-                          'Finding events near you...',
-                          style: TextStyle(color: M3Colors.onSurfaceVariant),
-                        ),
-                      ],
-                    ),
+                ? ListView.builder(
+                    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: 5,
+                    itemBuilder: (context, index) => const EventCardSkeleton(),
                   )
                 : _error != null
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.location_off,
-                              size: 64,
-                              color: M3Colors.outline,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              _error!,
-                              style: TextStyle(
-                                color: M3Colors.onSurfaceVariant,
-                                fontSize: 14,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 24),
-                            CrystalButton(
-                              onPressed: _getLocationAndLoad,
-                              label: 'TRY AGAIN',
-                              variant: CrystalButtonVariant.outlined,
-                              icon: Icons.refresh,
-                            ),
-                          ],
-                        ),
+                    ? IllustratedEmptyState(
+                        title: 'Location Error',
+                        message: _error!,
+                        icon: Icons.location_off,
+                        onAction: _getLocationAndLoad,
+                        actionLabel: 'TRY AGAIN',
                       )
                     : _filteredEvents.isEmpty
-                        ? TimeAwareEmptyState(
-                            radiusKm: _radiusKm,
-                            onIncreaseRadius: () => _onRadiusChanged(20),
+                        ? IllustratedEmptyState(
+                            title: 'No Events Found',
+                            message: 'No events within $_radiusKm km. Try increasing the radius.',
+                            icon: Icons.event_busy,
+                            onAction: () => _onRadiusChanged(20),
+                            actionLabel: 'INCREASE RADIUS',
                           )
                         : RefreshIndicator(
                             onRefresh: _refresh,
                             child: ListView.builder(
+                              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                               padding: const EdgeInsets.all(16),
                               itemCount: _filteredEvents.length,
                               itemBuilder: (context, index) {

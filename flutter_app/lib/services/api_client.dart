@@ -54,7 +54,7 @@ class ApiClient {
   }
   
   // ============================================================
-  // Signal Flare
+  // Signal Flare (Anonymous-friendly)
   // ============================================================
   
   Future<Map<String, dynamic>> submitFlare({
@@ -64,23 +64,23 @@ class ApiClient {
     String? biometricProof,
   }) async {
     final token = await getToken();
-    if (token == null) throw Exception('No token available. Please authenticate first.');
     
-    final flareId = const Uuid().v4();
+    // Build headers - token is optional for anonymous submissions
+    final headers = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
+    }
     
     final response = await http.post(
       Uri.parse('$baseUrl/v1/flare/submit'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
+      headers: headers,
       body: jsonEncode({
-        'signal_flare_id': flareId,
-        'request_location': {'lat': lat, 'lng': lng},
-        'device_timestamp': DateTime.now().toIso8601String(),
-        'geohash_10': geohash10,
-        'biometric_proof': biometricProof,
-        'client_public_key': 'flutter_app_${DateTime.now().millisecondsSinceEpoch}',
+        'lat': lat,
+        'lng': lng,
+        'geohash10': geohash10,
       }),
     );
     
@@ -96,11 +96,15 @@ class ApiClient {
   
   Future<Map<String, dynamic>> getFlareStatus(String flareId) async {
     final token = await getToken();
-    if (token == null) throw Exception('No token available');
+    
+    final headers = <String, String>{};
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
+    }
     
     final response = await http.get(
       Uri.parse('$baseUrl/v1/flare/status/$flareId'),
-      headers: {'Authorization': 'Bearer $token'},
+      headers: headers,
     );
     
     if (response.statusCode == 200) {
