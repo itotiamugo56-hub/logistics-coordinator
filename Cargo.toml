@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/crypto_core", 
+    "crates/crdt_engine",
+    "crates/geoh3_index",
+    "crates/sqlite_embedded",
+    "crates/backend_api"
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.82"

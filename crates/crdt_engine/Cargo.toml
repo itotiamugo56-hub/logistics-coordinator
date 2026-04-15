@@ -1,0 +1,17 @@
+[package]
+name = "crdt_engine"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+crypto_core = { path = "../crypto_core" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+hex = "0.4"
+
+[dev-dependencies]
+rand = "0.8"
+
+[lib]
+path = "src/lib.rs"
+crate-type = ["lib", "staticlib"]

@@ -1,0 +1,33 @@
+﻿# Rust
+/target/
+**/*.rs.bk
+*.pdb
+*.dll
+*.exe
+
+# Database (contains data, not schema)
+*.db
+*.db.backup
+*.db.final.backup
+*.sqlite
+*.sqlite3
+
+# Flutter
+/flutter_app/build/
+/flutter_app/.dart_tool/
+/flutter_app/.flutter-plugins
+/flutter_app/.flutter-plugins-dependencies
+/flutter_app/pubspec.lock
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Environment
+.env
+*.pem
+*.key
+
+# Logs
+*.log
