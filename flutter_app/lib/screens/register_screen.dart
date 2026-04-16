@@ -3,31 +3,37 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/haptic_service.dart';
 import '../widgets/crystal_button.dart';
+import 'login_screen.dart';
 import 'dashboard_screen.dart';
 
-class ClergyLoginScreen extends StatefulWidget {
-  const ClergyLoginScreen({super.key});
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
 
   @override
-  State<ClergyLoginScreen> createState() => _ClergyLoginScreenState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _ClergyLoginScreenState extends State<ClergyLoginScreen> {
+class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
+  final _nameController = TextEditingController();
   final _otpController = TextEditingController();
+  
+  bool _isOtpSent = false;
   bool _isLoading = false;
   String? _error;
+  String? _tempMemberId;  // Store member_id from registration response
   
   @override
   void dispose() {
     _emailController.dispose();
+    _nameController.dispose();
     _otpController.dispose();
     super.dispose();
   }
   
-  Future<void> _login() async {
+  Future<void> _sendOtp() async {
     final email = _emailController.text.trim();
-    final otp = _otpController.text.trim();
+    final name = _nameController.text.trim();
     
     if (email.isEmpty) {
       setState(() => _error = 'Please enter your email');
@@ -35,8 +41,8 @@ class _ClergyLoginScreenState extends State<ClergyLoginScreen> {
       return;
     }
     
-    if (otp.isEmpty) {
-      setState(() => _error = 'Please enter the password');
+    if (name.isEmpty) {
+      setState(() => _error = 'Please enter your name');
       HapticService.trigger(HapticIntensity.error, context: context);
       return;
     }
@@ -47,23 +53,53 @@ class _ClergyLoginScreenState extends State<ClergyLoginScreen> {
     });
     
     final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.register(email, name);
     
-    // Login using the same endpoint
-    final success = await authProvider.login(email, otp);
+    setState(() {
+      _isLoading = false;
+      if (success) {
+        _isOtpSent = true;
+        _tempMemberId = authProvider.memberId;
+        HapticService.trigger(HapticIntensity.light, context: context);
+      } else {
+        _error = authProvider.error;
+        HapticService.trigger(HapticIntensity.error, context: context);
+      }
+    });
+  }
+  
+  Future<void> _verifyOtp() async {
+    final otp = _otpController.text.trim();
+    
+    if (otp.isEmpty) {
+      setState(() => _error = 'Please enter the OTP');
+      HapticService.trigger(HapticIntensity.error, context: context);
+      return;
+    }
+    
+    if (_tempMemberId == null) {
+      setState(() => _error = 'Invalid session. Please try again.');
+      return;
+    }
+    
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.verifyRegistration(_tempMemberId!, otp);
     
     setState(() {
       _isLoading = false;
       if (success) {
         HapticService.trigger(HapticIntensity.light, context: context);
-        
-        // Allow ANY authenticated user to proceed
-        // They will see role-specific options in the profile menu
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const DashboardScreen()),
         );
       } else {
-        _error = authProvider.error ?? 'Login failed';
+        _error = authProvider.error;
         HapticService.trigger(HapticIntensity.error, context: context);
       }
     });
@@ -73,16 +109,6 @@ class _ClergyLoginScreenState extends State<ClergyLoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Staff Login'),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        foregroundColor: M3Colors.primary,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -90,19 +116,19 @@ class _ClergyLoginScreenState extends State<ClergyLoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Icon
+                // Logo
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [M3Colors.primary, M3Colors.tertiary],
+                      colors: [Color(0xFF6750A4), Color(0xFF7D5260)],
                     ),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
-                    Icons.badge,
+                    Icons.church,
                     size: 48,
                     color: Colors.white,
                   ),
@@ -111,28 +137,49 @@ class _ClergyLoginScreenState extends State<ClergyLoginScreen> {
                 
                 // Title
                 const Text(
-                  'Clergy Portal',
+                  'Create Account',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
                   ),
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Sign in to access administrative features',
+                  'Sign up to send flares and track history',
                   style: TextStyle(
                     fontSize: 14,
-                    color: M3Colors.onSurfaceVariant,
+                    color: Color(0xFF49454F),
                   ),
                 ),
                 const SizedBox(height: 48),
                 
+                // Name Field
+                TextField(
+                  controller: _nameController,
+                  enabled: !_isOtpSent,
+                  decoration: InputDecoration(
+                    labelText: 'Full Name',
+                    hintText: 'John Doe',
+                    prefixIcon: const Icon(Icons.person_outline),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
                 // Email Field
                 TextField(
                   controller: _emailController,
+                  enabled: !_isOtpSent,
                   decoration: InputDecoration(
                     labelText: 'Email Address',
-                    hintText: 'admin@repentance.org',
+                    hintText: 'you@example.com',
                     prefixIcon: const Icon(Icons.email_outlined),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -146,42 +193,43 @@ class _ClergyLoginScreenState extends State<ClergyLoginScreen> {
                 ),
                 const SizedBox(height: 16),
                 
-                // Password Field
-                TextField(
-                  controller: _otpController,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    hintText: 'Enter your password',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                // OTP Field (visible after OTP sent)
+                if (_isOtpSent)
+                  TextField(
+                    controller: _otpController,
+                    decoration: InputDecoration(
+                      labelText: 'Verification Code',
+                      hintText: 'Enter 6-digit code',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
+                    keyboardType: TextInputType.number,
                   ),
-                  obscureText: true,
-                ),
                 
-                const SizedBox(height: 16),
+                if (_isOtpSent) const SizedBox(height: 16),
                 
                 // Error message
                 if (_error != null)
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: M3Colors.error.withOpacity(0.1),
+                      color: const Color(0xFFBA1A1A).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.error_outline, color: M3Colors.error, size: 18),
+                        const Icon(Icons.error_outline, color: Color(0xFFBA1A1A), size: 18),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             _error!,
-                            style: const TextStyle(color: M3Colors.error, fontSize: 13),
+                            style: const TextStyle(color: Color(0xFFBA1A1A), fontSize: 13),
                           ),
                         ),
                       ],
@@ -190,10 +238,10 @@ class _ClergyLoginScreenState extends State<ClergyLoginScreen> {
                 
                 const SizedBox(height: 24),
                 
-                // Login Button
+                // Action Button
                 CrystalButton(
-                  onPressed: _login,
-                  label: 'SIGN IN',
+                  onPressed: _isOtpSent ? _verifyOtp : _sendOtp,
+                  label: _isOtpSent ? 'VERIFY & CREATE' : 'SEND OTP',
                   variant: CrystalButtonVariant.filled,
                   isLoading: _isLoading,
                   isExpanded: true,
@@ -201,25 +249,25 @@ class _ClergyLoginScreenState extends State<ClergyLoginScreen> {
                 
                 const SizedBox(height: 16),
                 
-                // Info text - generic
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: M3Colors.primaryContainer.withOpacity(0.5),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.info_outline, size: 16, color: M3Colors.primary),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'This portal is for authorized staff and administrators only.',
-                          style: TextStyle(fontSize: 12, color: M3Colors.onSurfaceVariant),
-                        ),
+                // Login link
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text("Already have an account? "),
+                    TextButton(
+                      onPressed: () {
+                        HapticService.trigger(HapticIntensity.light, context: context);
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (_) => const LoginScreen()),
+                        );
+                      },
+                      child: const Text(
+                        'Sign In',
+                        style: TextStyle(fontWeight: FontWeight.w600),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ],
             ),

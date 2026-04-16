@@ -1,6 +1,6 @@
 //! Authentication endpoints - Registration, Login, Token Management
 
-use axum::{Json, http::StatusCode};
+use axum::{Json, http::StatusCode, extract::State};
 use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 use chrono::{Utc, Duration};
@@ -8,7 +8,7 @@ use sqlite_embedded::Pool;
 
 use crate::auth::{
     issue_token, issue_temp_token, validate_token,
-    TokenConstraints, VerificationStatus, Role,
+    TokenConstraints, VerificationStatus, Role, token_lifetime,
 };
 use crate::middleware::auth::OptionalAuthUser;
 
@@ -69,6 +69,21 @@ pub struct TokenResponse {
     pub refresh_limit: u32,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct LoginRequest {
+    pub email: String,
+    pub otp: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LoginResponse {
+    pub access_token: String,
+    pub expires_in: i64,
+    pub member_id: Uuid,
+    pub role: String,
+    pub name: String,
+}
+
 // ============================================================
 // In-memory OTP storage (in production, use Redis)
 // ============================================================
@@ -85,6 +100,107 @@ fn generate_otp() -> String {
 // ============================================================
 // Handlers
 // ============================================================
+
+/// Universal login for all user types (Clergy, Members)
+pub async fn login(
+    State(pool): State<Pool>,
+    Json(req): Json<LoginRequest>,
+) -> Result<Json<LoginResponse>, StatusCode> {
+    let conn = pool.get().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    println!("🔐 Login attempt - Email: '{}', Password: '{}'", req.email, req.otp);
+    
+    // First check in clergy_users (Global Admin, Regional Admin, Branch Clergy)
+    let mut stmt = conn.prepare(
+        "SELECT id, name, role FROM clergy_users WHERE email = ?1 AND password_hash = ?2"
+    ).map_err(|e| {
+        eprintln!("Failed to prepare statement: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    
+    let result = stmt.query_row([&req.email, &req.otp], |row| {
+        let id: String = row.get(0)?;
+        let name: String = row.get(1)?;
+        let role: String = row.get(2)?;
+        Ok((id, name, role))
+    });
+    
+    match result {
+        Ok((id, name, role)) => {
+            println!("✅ Clergy login successful: {} ({})", name, role);
+            let member_id = Uuid::parse_str(&id).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            let role_enum = Role::from_str(&role);
+            let token_lifetime_secs = token_lifetime(&role_enum);
+            
+            let token = issue_token(
+                member_id,
+                role_enum,
+                TokenConstraints::default(),
+                vec![],
+                VerificationStatus::FullyVerified,
+            ).map_err(|e| {
+                eprintln!("Token issuance error: {:?}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+            
+            return Ok(Json(LoginResponse {
+                access_token: token,
+                expires_in: token_lifetime_secs,
+                member_id,
+                role: role_enum.to_string(),
+                name,
+            }));
+        }
+        Err(e) => {
+            println!("❌ Clergy login failed: {}", e);
+        }
+    }
+    
+    // Then check in members table (Verified Members)
+    let mut stmt = conn.prepare(
+        "SELECT id, name FROM members WHERE email = ?1 AND verification_status = 'FullyVerified'"
+    ).map_err(|e| {
+        eprintln!("Failed to prepare members statement: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    
+    let result = stmt.query_row([&req.email], |row| {
+        let id: String = row.get(0)?;
+        let name: String = row.get(1)?;
+        Ok((id, name))
+    });
+    
+    match result {
+        Ok((id, name)) => {
+            println!("✅ Member login successful: {}", name);
+            let member_id = Uuid::parse_str(&id).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            let token = issue_token(
+                member_id,
+                Role::VerifiedMember,
+                TokenConstraints::default(),
+                vec![],
+                VerificationStatus::FullyVerified,
+            ).map_err(|e| {
+                eprintln!("Token issuance error: {:?}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+            
+            return Ok(Json(LoginResponse {
+                access_token: token,
+                expires_in: token_lifetime(&Role::VerifiedMember),
+                member_id,
+                role: "verified_member".to_string(),
+                name,
+            }));
+        }
+        Err(e) => {
+            println!("❌ Member login failed: {}", e);
+        }
+    }
+    
+    println!("❌ Login failed - no match found for email: {}", req.email);
+    Err(StatusCode::UNAUTHORIZED)
+}
 
 /// Register a new member (unverified)
 pub async fn register_member(

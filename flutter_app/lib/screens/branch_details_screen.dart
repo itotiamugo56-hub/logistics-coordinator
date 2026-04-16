@@ -14,6 +14,7 @@ import '../widgets/branch_editor.dart';
 import '../widgets/service_times_editor.dart';
 import '../widgets/photo_manager.dart';
 import '../main.dart';
+import '../services/haptic_service.dart';
 
 // Material Design 3 Color Scheme
 class M3Colors {
@@ -32,7 +33,7 @@ class M3Colors {
   static const Color onSurfaceVariant = Color(0xFF49454F);
   static const Color outline = Color(0xFF79747E);
   static const Color outlineVariant = Color(0xFFCAC4D0);
-  static const Color live = Color(0xFF00C853); // Green for live indicator
+  static const Color live = Color(0xFF00C853);
 }
 
 enum ServiceStatus { live, upcoming, ended }
@@ -231,11 +232,11 @@ class _BranchDetailsScreenState extends State<BranchDetailsScreen> with SingleTi
   int _currentPhotoIndex = 0;
   
   final List<Map<String, dynamic>> _tabs = [
-    {'title': 'Info', 'icon': Icons.info_outline},
-    {'title': 'Events', 'icon': Icons.event_available_outlined},
-    {'title': 'Pickup', 'icon': Icons.directions_bus_outlined},
-    {'title': 'Alerts', 'icon': Icons.notifications_none},
-    {'title': 'Photos', 'icon': Icons.photo_library_outlined},
+    {'title': 'Info', 'icon': Icons.info_outline, 'color': M3Colors.primary},
+    {'title': 'Events', 'icon': Icons.event_available_outlined, 'color': M3Colors.live},
+    {'title': 'Pickup', 'icon': Icons.directions_bus_outlined, 'color': M3Colors.secondary},
+    {'title': 'Alerts', 'icon': Icons.notifications_none, 'color': M3Colors.error},
+    {'title': 'Photos', 'icon': Icons.photo_library_outlined, 'color': M3Colors.tertiary},
   ];
   
   @override
@@ -417,22 +418,22 @@ class _BranchDetailsScreenState extends State<BranchDetailsScreen> with SingleTi
   
   @override
   Widget build(BuildContext context) {
-    // Get motion reduction preference
     final motionPrefs = Provider.of<MotionPreferences>(context);
     final reduceMotion = motionPrefs.disableAnimations;
     
     return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         title: Text(
           _branch.name,
           style: const TextStyle(
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
             fontSize: 20,
             letterSpacing: -0.5,
           ),
         ),
-        backgroundColor: M3Colors.surface,
-        foregroundColor: M3Colors.onSurface,
+        backgroundColor: Colors.white,
+        foregroundColor: M3Colors.primary,
         elevation: 0,
         centerTitle: false,
         actions: [
@@ -583,23 +584,15 @@ class _BranchDetailsScreenState extends State<BranchDetailsScreen> with SingleTi
         ),
       ),
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(),
-            )
-          : Column(
+          ? const Center(child: CircularProgressIndicator())
+          : TabBarView(
+              controller: _tabController,
               children: [
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildInfoTab(),
-                      _buildEventsTab(),
-                      _buildPickupPointsTab(),
-                      _buildAlertsTab(),
-                      _buildPhotosTab(),
-                    ],
-                  ),
-                ),
+                _buildInfoTab(),
+                _buildEventsTab(),
+                _buildPickupPointsTab(),
+                _buildAlertsTab(),
+                _buildPhotosTab(),
               ],
             ),
       floatingActionButton: FloatingActionButton.extended(
@@ -618,233 +611,307 @@ class _BranchDetailsScreenState extends State<BranchDetailsScreen> with SingleTi
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Alerts Banner
+          // Alerts Banner (if any)
           if (_alerts.isNotEmpty)
             Container(
               padding: const EdgeInsets.all(16),
               margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
                 color: M3Colors.errorContainer,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: M3Colors.error.withOpacity(0.3)),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.warning_amber_rounded, color: M3Colors.error, size: 20),
-                      SizedBox(width: 12),
-                      Text(
-                        'Active Alerts',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: M3Colors.error,
-                        ),
-                      ),
-                    ],
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: M3Colors.error.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.warning_amber, color: M3Colors.error, size: 20),
                   ),
-                  const SizedBox(height: 12),
-                  ..._alerts.map((alert) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
+                  const SizedBox(width: 12),
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          alert['message'],
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                        if (alert['affected_service'] != null)
-                          Text(
-                            'Affects: ${alert['affected_service']}',
-                            style: TextStyle(fontSize: 12, color: M3Colors.onSurfaceVariant),
+                        const Text(
+                          'Active Alert',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: M3Colors.error,
                           ),
+                        ),
+                        Text(
+                          _alerts.first['message'],
+                          style: const TextStyle(fontSize: 13),
+                        ),
                       ],
                     ),
-                  )),
+                  ),
                 ],
               ),
             ),
           
-          // Branch Info Card
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: BorderSide(color: M3Colors.outlineVariant),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: M3Colors.primaryContainer,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Icon(Icons.location_on, color: M3Colors.primary, size: 20),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Text(
-                          _branch.address,
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: M3Colors.surfaceVariant,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Icon(Icons.person, color: M3Colors.onSurfaceVariant, size: 20),
-                      ),
-                      const SizedBox(width: 14),
-                      Text(_branch.seniorPastor),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: M3Colors.surfaceVariant,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Icon(Icons.phone, color: M3Colors.onSurfaceVariant, size: 20),
-                      ),
-                      const SizedBox(width: 14),
-                      InkWell(
-                        onTap: () => _launchPhone(_branch.phone),
-                        borderRadius: BorderRadius.circular(8),
-                        child: Text(
-                          _branch.phone,
-                          style: const TextStyle(color: M3Colors.primary),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: M3Colors.surfaceVariant,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Icon(Icons.email, color: M3Colors.onSurfaceVariant, size: 20),
-                      ),
-                      const SizedBox(width: 14),
-                      InkWell(
-                        onTap: () => _launchEmail(_branch.email),
-                        borderRadius: BorderRadius.circular(8),
-                        child: Text(
-                          _branch.email,
-                          style: const TextStyle(color: M3Colors.primary),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
+          // Branch Info Card - Stripe/Apple Style
+          _buildInfoCard(),
+          const SizedBox(height: 16),
+          
+          // Service Times Card
+          _buildServiceTimesCard(),
           
           const SizedBox(height: 16),
           
-          // Service Times Card WITH LIVE STATUS
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: BorderSide(color: M3Colors.outlineVariant),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: M3Colors.tertiary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Icon(Icons.schedule, color: M3Colors.tertiary, size: 20),
-                      ),
-                      const SizedBox(width: 14),
-                      const Text(
-                        'Service Times',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  ..._branch.serviceTimes.entries.map((entry) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            SizedBox(
-                              width: 90,
-                              child: Text(
-                                entry.key,
-                                style: const TextStyle(fontWeight: FontWeight.w600),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                entry.value.join(' • '),
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        // Live status chip for each service time
-                        ServiceStatusChip(
-                          day: entry.key,
-                          times: entry.value,
-                        ),
-                      ],
-                    ),
-                  )),
-                ],
-              ),
-            ),
-          ),
-          
-          // Privacy Badge - Transactional Confidence
-          const SizedBox(height: 8),
+          // Privacy Badge
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(vertical: 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.lock_outline, size: 12, color: M3Colors.outline),
+                Icon(Icons.lock_outline, size: 12, color: M3Colors.outline),
                 const SizedBox(width: 6),
                 Text(
-                  'End-to-end encrypted • Information only visible to assigned clergy',
+                  'End-to-end encrypted',
                   style: TextStyle(fontSize: 10, color: M3Colors.outline),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildInfoCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: M3Colors.primaryContainer.withOpacity(0.5),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: M3Colors.primary,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.store, size: 20, color: Colors.white),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Branch Information',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Content
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                _buildInfoRow(
+                  icon: Icons.location_on,
+                  label: 'Address',
+                  value: _branch.address,
+                  color: M3Colors.primary,
+                ),
+                const SizedBox(height: 16),
+                _buildInfoRow(
+                  icon: Icons.person,
+                  label: 'Senior Pastor',
+                  value: _branch.seniorPastor,
+                  color: M3Colors.secondary,
+                ),
+                const SizedBox(height: 16),
+                _buildInfoRow(
+                  icon: Icons.phone,
+                  label: 'Phone',
+                  value: _branch.phone,
+                  color: M3Colors.tertiary,
+                  isClickable: true,
+                  onTap: () => _launchPhone(_branch.phone),
+                ),
+                const SizedBox(height: 16),
+                _buildInfoRow(
+                  icon: Icons.email,
+                  label: 'Email',
+                  value: _branch.email,
+                  color: M3Colors.primary,
+                  isClickable: true,
+                  onTap: () => _launchEmail(_branch.email),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildInfoRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+    bool isClickable = false,
+    VoidCallback? onTap,
+  }) {
+    return GestureDetector(
+      onTap: isClickable ? onTap : null,
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 18, color: color),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: M3Colors.onSurfaceVariant,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: isClickable ? FontWeight.w600 : FontWeight.normal,
+                    color: isClickable ? M3Colors.primary : M3Colors.onSurface,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (isClickable)
+            Icon(Icons.chevron_right, size: 18, color: M3Colors.outline),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildServiceTimesCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: M3Colors.primaryContainer.withOpacity(0.5),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: M3Colors.tertiary,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.schedule, size: 20, color: Colors.white),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Service Times',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Content
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: _branch.serviceTimes.entries.map((entry) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 90,
+                            child: Text(
+                              entry.key,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              entry.value.join(' • '),
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      ServiceStatusChip(
+                        day: entry.key,
+                        times: entry.value,
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
             ),
           ),
         ],
@@ -858,16 +925,26 @@ class _BranchDetailsScreenState extends State<BranchDetailsScreen> with SingleTi
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.event_busy, size: 64, color: M3Colors.outline),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: M3Colors.surfaceVariant,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.event_busy, size: 48, color: M3Colors.outline),
+            ),
             const SizedBox(height: 16),
-            Text(
-              'No upcoming events',
-              style: TextStyle(color: M3Colors.onSurfaceVariant, fontSize: 16),
+            const Text(
+              'No Upcoming Events',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 8),
-            Text(
+            const Text(
               'Check back later for special services',
-              style: TextStyle(color: M3Colors.outline, fontSize: 14),
+              style: TextStyle(color: M3Colors.onSurfaceVariant),
             ),
           ],
         ),
@@ -884,125 +961,130 @@ class _BranchDetailsScreenState extends State<BranchDetailsScreen> with SingleTi
                        eventDate.add(const Duration(hours: 2)).isAfter(DateTime.now());
         final isUpcoming = eventDate.isAfter(DateTime.now());
         
-        return Card(
-          elevation: 0,
+        return Container(
           margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: M3Colors.outlineVariant),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+            border: isLive ? Border.all(color: M3Colors.live, width: 1.5) : null,
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: isLive ? M3Colors.live.withOpacity(0.15) : M3Colors.primaryContainer,
-                    borderRadius: BorderRadius.circular(16),
-                    border: isLive ? Border.all(color: M3Colors.live, width: 2) : null,
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (isLive)
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 800),
-                          curve: Curves.easeInOut,
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: M3Colors.live,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: M3Colors.live.withOpacity(0.8),
-                                blurRadius: 4,
-                                spreadRadius: 2,
-                              ),
-                            ],
-                          ),
-                        )
-                      else ...[
-                        Text(
-                          '${eventDate.day}',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: isUpcoming ? M3Colors.primary : M3Colors.onSurfaceVariant,
-                          ),
-                        ),
-                        Text(
-                          _getMonthAbbr(eventDate.month),
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: isUpcoming ? M3Colors.primary : M3Colors.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
+          child: Row(
+            children: [
+              // Date box
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: isLive ? M3Colors.live.withOpacity(0.1) : M3Colors.primaryContainer,
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              event['name'],
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (isLive)
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 800),
+                        curve: Curves.easeInOut,
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: M3Colors.live,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: M3Colors.live.withOpacity(0.8),
+                              blurRadius: 4,
+                              spreadRadius: 2,
                             ),
-                          ),
-                          if (isLive)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: M3Colors.live,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Text(
-                                'LIVE',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      if (event['description'] != null)
-                        Text(
-                          event['description'],
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: M3Colors.onSurfaceVariant,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                          ],
                         ),
-                      const SizedBox(height: 4),
+                      )
+                    else ...[
                       Text(
-                        isLive ? 'Happening now!' : '${eventDate.hour}:${eventDate.minute.toString().padLeft(2, '0')}',
+                        '${eventDate.day}',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: isUpcoming ? M3Colors.primary : M3Colors.onSurfaceVariant,
+                        ),
+                      ),
+                      Text(
+                        _getMonthAbbr(eventDate.month),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: isUpcoming ? M3Colors.primary : M3Colors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            event['name'],
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        if (isLive)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: M3Colors.live,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text(
+                              'LIVE',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    if (event['description'] != null)
+                      Text(
+                        event['description'],
                         style: TextStyle(
                           fontSize: 12,
-                          color: isLive ? M3Colors.live : M3Colors.tertiary,
-                          fontWeight: isLive ? FontWeight.w600 : FontWeight.normal,
+                          color: M3Colors.onSurfaceVariant,
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ],
-                  ),
+                    const SizedBox(height: 4),
+                    Text(
+                      isLive ? 'Happening now!' : '${eventDate.hour}:${eventDate.minute.toString().padLeft(2, '0')}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isLive ? M3Colors.live : M3Colors.tertiary,
+                        fontWeight: isLive ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },
@@ -1015,16 +1097,23 @@ class _BranchDetailsScreenState extends State<BranchDetailsScreen> with SingleTi
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.directions_bus, size: 64, color: M3Colors.outline),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: M3Colors.surfaceVariant,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.directions_bus, size: 48, color: M3Colors.outline),
+            ),
             const SizedBox(height: 16),
-            Text(
-              'No pickup points',
-              style: TextStyle(color: M3Colors.onSurfaceVariant, fontSize: 16),
+            const Text(
+              'No Pickup Points',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
-            Text(
+            const Text(
               'Transportation info coming soon',
-              style: TextStyle(color: M3Colors.outline, fontSize: 14),
+              style: TextStyle(color: M3Colors.onSurfaceVariant),
             ),
           ],
         ),
@@ -1036,84 +1125,88 @@ class _BranchDetailsScreenState extends State<BranchDetailsScreen> with SingleTi
       itemCount: _pickupPoints.length,
       itemBuilder: (context, index) {
         final point = _pickupPoints[index];
-        return Card(
-          elevation: 0,
+        return Container(
           margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: M3Colors.outlineVariant),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: M3Colors.secondary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.location_on, size: 20, color: M3Colors.secondary),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      point['name'],
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.only(left: 42),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: M3Colors.secondary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Icon(Icons.location_on, color: M3Colors.secondary, size: 20),
+                    Row(
+                      children: [
+                        const Icon(Icons.access_time, size: 16, color: M3Colors.tertiary),
+                        const SizedBox(width: 8),
+                        Text('Pickup: ${point['pickup_time']}'),
+                      ],
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Text(
-                        point['name'],
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Padding(
-                  padding: const EdgeInsets.only(left: 48),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                    if (point['transport_manager_name'] != null) ...[
+                      const SizedBox(height: 8),
                       Row(
                         children: [
-                          const Icon(Icons.access_time, size: 16, color: M3Colors.tertiary),
+                          const Icon(Icons.person, size: 16, color: M3Colors.onSurfaceVariant),
                           const SizedBox(width: 8),
-                          Text('Pickup: ${point['pickup_time']}'),
+                          Text(point['transport_manager_name']),
                         ],
                       ),
-                      if (point['transport_manager_name'] != null) ...[
-                        const SizedBox(height: 8),
-                        Row(
+                    ],
+                    if (point['transport_manager_phone'] != null) ...[
+                      const SizedBox(height: 8),
+                      InkWell(
+                        onTap: () => _launchPhone(point['transport_manager_phone']),
+                        child: Row(
                           children: [
-                            const Icon(Icons.person, size: 16, color: M3Colors.onSurfaceVariant),
+                            const Icon(Icons.phone, size: 16, color: M3Colors.primary),
                             const SizedBox(width: 8),
-                            Text(point['transport_manager_name']),
+                            Text(
+                              point['transport_manager_phone'],
+                              style: const TextStyle(color: M3Colors.primary),
+                            ),
                           ],
                         ),
-                      ],
-                      if (point['transport_manager_phone'] != null) ...[
-                        const SizedBox(height: 8),
-                        InkWell(
-                          onTap: () => _launchPhone(point['transport_manager_phone']),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.phone, size: 16, color: M3Colors.primary),
-                              const SizedBox(width: 8),
-                              Text(
-                                point['transport_manager_phone'],
-                                style: const TextStyle(color: M3Colors.primary),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                      ),
                     ],
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },
@@ -1126,16 +1219,23 @@ class _BranchDetailsScreenState extends State<BranchDetailsScreen> with SingleTi
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.notifications_off, size: 64, color: M3Colors.outline),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: M3Colors.surfaceVariant,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.notifications_off, size: 48, color: M3Colors.outline),
+            ),
             const SizedBox(height: 16),
-            Text(
-              'No active alerts',
-              style: TextStyle(color: M3Colors.onSurfaceVariant, fontSize: 16),
+            const Text(
+              'No Active Alerts',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
-            Text(
+            const Text(
               'All systems operating normally',
-              style: TextStyle(color: M3Colors.outline, fontSize: 14),
+              style: TextStyle(color: M3Colors.onSurfaceVariant),
             ),
           ],
         ),
@@ -1147,53 +1247,50 @@ class _BranchDetailsScreenState extends State<BranchDetailsScreen> with SingleTi
       itemCount: _alerts.length,
       itemBuilder: (context, index) {
         final alert = _alerts[index];
-        return Card(
-          elevation: 0,
+        return Container(
           margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: M3Colors.error.withOpacity(0.3)),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: M3Colors.errorContainer,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: M3Colors.error.withOpacity(0.3)),
           ),
-          color: M3Colors.errorContainer,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: M3Colors.error,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Icon(Icons.warning, color: Colors.white, size: 20),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: M3Colors.error,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                child: const Icon(Icons.warning, size: 20, color: Colors.white),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      alert['message'],
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    if (alert['affected_service'] != null) ...[
+                      const SizedBox(height: 4),
                       Text(
-                        alert['message'],
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                        'Affects: ${alert['affected_service']}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: M3Colors.error,
                         ),
                       ),
-                      if (alert['affected_service'] != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          'Affects: ${alert['affected_service']}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: M3Colors.error,
-                          ),
-                        ),
-                      ],
                     ],
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },
@@ -1206,23 +1303,29 @@ class _BranchDetailsScreenState extends State<BranchDetailsScreen> with SingleTi
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.photo_library, size: 64, color: M3Colors.outline),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: M3Colors.surfaceVariant,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.photo_library, size: 48, color: M3Colors.outline),
+            ),
             const SizedBox(height: 16),
-            Text(
-              'No photos yet',
-              style: TextStyle(color: M3Colors.onSurfaceVariant, fontSize: 16),
+            const Text(
+              'No Photos Yet',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
-            Text(
+            const Text(
               'Gallery coming soon',
-              style: TextStyle(color: M3Colors.outline, fontSize: 14),
+              style: TextStyle(color: M3Colors.onSurfaceVariant),
             ),
           ],
         ),
       );
     }
     
-    // Get motion reduction preference for carousel animations
     final motionPrefs = Provider.of<MotionPreferences>(context);
     final reduceMotion = motionPrefs.disableAnimations;
     
@@ -1232,7 +1335,7 @@ class _BranchDetailsScreenState extends State<BranchDetailsScreen> with SingleTi
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Constrained Carousel - NOT flexed across entire screen
+            // Carousel
             Container(
               width: MediaQuery.of(context).size.width * 0.85,
               height: 280,
@@ -1416,7 +1519,7 @@ class _BranchDetailsScreenState extends State<BranchDetailsScreen> with SingleTi
               ),
             ),
             const SizedBox(height: 16),
-            // Optional: Photo count text
+            // Photo count
             Text(
               '${_photos.length} photo${_photos.length != 1 ? 's' : ''}',
               style: TextStyle(

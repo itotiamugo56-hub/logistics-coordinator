@@ -11,6 +11,10 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # Secure Storage (for clergy authentication only)
+  flutter_secure_storage: ^9.2.2
+  crypto: ^3.0.3
+
   # Image picker for photo uploads
   image_picker: ^1.0.7
   
@@ -35,9 +39,6 @@ dependencies:
   
   # State Management
   provider: ^6.1.2
-  
-  # Secure Storage (for clergy authentication only)
-  flutter_secure_storage: ^9.2.2
   
   # Local Database (offline-first)
   sqflite: ^2.3.3

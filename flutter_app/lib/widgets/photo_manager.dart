@@ -41,7 +41,7 @@ class _PhotoManagerState extends State<PhotoManager> with OptimisticOperation<Ma
   
   @override
   String _getId(Map<String, dynamic> item) {
-    return item['id'].toString();
+    return item['id']?.toString() ?? item['url']?.toString() ?? '';
   }
   
   @override
@@ -91,9 +91,9 @@ class _PhotoManagerState extends State<PhotoManager> with OptimisticOperation<Ma
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         setState(() {
-          _photos = data.map((url) => {
-            'id': _uuid.v4(),
-            'url': url.toString(),
+          _photos = data.asMap().entries.map((entry) => {
+            'id': 'photo_${entry.key}_${_uuid.v4()}',
+            'url': entry.value.toString(),
           }).toList();
           _isLoading = false;
         });

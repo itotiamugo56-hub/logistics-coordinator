@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:uuid/uuid.dart';
+import 'package:latlong2/latlong.dart';
 import '../models/branch.dart';
 import '../mixins/optimistic_operation.dart';
 import '../services/haptic_service.dart';
@@ -9,6 +10,7 @@ import '../widgets/inline_feedback.dart';
 import '../widgets/crystal_button.dart';
 import '../widgets/physics_sheet.dart';
 import '../widgets/success_animation.dart';
+import '../widgets/location_picker.dart';
 
 class BranchEditor extends StatefulWidget {
   final Branch branch;
@@ -27,6 +29,8 @@ class _BranchEditorState extends State<BranchEditor> with OptimisticOperation<Ma
   late TextEditingController _pastorController;
   late TextEditingController _phoneController;
   late TextEditingController _emailController;
+  late TextEditingController _latitudeController;
+  late TextEditingController _longitudeController;
   bool _isSaving = false;
   OverlayEntry? _feedbackOverlay;
   
@@ -55,6 +59,8 @@ class _BranchEditorState extends State<BranchEditor> with OptimisticOperation<Ma
     _pastorController = TextEditingController(text: widget.branch.seniorPastor);
     _phoneController = TextEditingController(text: widget.branch.phone);
     _emailController = TextEditingController(text: widget.branch.email);
+    _latitudeController = TextEditingController(text: widget.branch.latitude.toString());
+    _longitudeController = TextEditingController(text: widget.branch.longitude.toString());
   }
   
   @override
@@ -64,6 +70,8 @@ class _BranchEditorState extends State<BranchEditor> with OptimisticOperation<Ma
     _pastorController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
+    _latitudeController.dispose();
+    _longitudeController.dispose();
     _removeFeedbackOverlay();
     super.dispose();
   }
@@ -95,6 +103,33 @@ class _BranchEditorState extends State<BranchEditor> with OptimisticOperation<Ma
     _feedbackOverlay = null;
   }
   
+  Future<void> _openLocationPicker() async {
+    HapticService.trigger(HapticIntensity.light, context: context);
+    
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LocationPicker(
+          initialLocation: _latitudeController.text.isNotEmpty && _longitudeController.text.isNotEmpty
+              ? LatLng(
+                  double.tryParse(_latitudeController.text) ?? widget.branch.latitude,
+                  double.tryParse(_longitudeController.text) ?? widget.branch.longitude,
+                )
+              : LatLng(widget.branch.latitude, widget.branch.longitude),
+          initialAddress: _addressController.text,
+          onLocationSelected: (lat, lng, address) {
+            setState(() {
+              _latitudeController.text = lat.toString();
+              _longitudeController.text = lng.toString();
+              _addressController.text = address;
+            });
+            HapticService.trigger(HapticIntensity.light, context: context);
+          },
+        ),
+      ),
+    );
+  }
+  
   Future<void> _saveBranch() async {
     if (!_formKey.currentState!.validate()) {
       await HapticService.trigger(HapticIntensity.error, context: context);
@@ -109,6 +144,12 @@ class _BranchEditorState extends State<BranchEditor> with OptimisticOperation<Ma
     if (_pastorController.text != widget.branch.seniorPastor) updates['senior_pastor'] = _pastorController.text;
     if (_phoneController.text != widget.branch.phone) updates['phone'] = _phoneController.text;
     if (_emailController.text != widget.branch.email) updates['email'] = _emailController.text;
+    
+    // Check if latitude/longitude changed
+    final newLat = double.tryParse(_latitudeController.text);
+    final newLng = double.tryParse(_longitudeController.text);
+    if (newLat != null && newLat != widget.branch.latitude) updates['latitude'] = newLat;
+    if (newLng != null && newLng != widget.branch.longitude) updates['longitude'] = newLng;
     
     if (updates.isEmpty) {
       await HapticService.trigger(HapticIntensity.light, context: context);
@@ -246,6 +287,58 @@ class _BranchEditorState extends State<BranchEditor> with OptimisticOperation<Ma
                     HapticService.trigger(HapticIntensity.light, context: context);
                   },
                 ),
+                const SizedBox(height: 16),
+                
+                // Location Picker Button
+                InkWell(
+                  onTap: _openLocationPicker,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey[300]!),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF6750A4).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.map, size: 20, color: Color(0xFF6750A4)),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Branch Location',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _latitudeController.text.isNotEmpty && _longitudeController.text.isNotEmpty
+                                    ? '${_latitudeController.text}, ${_longitudeController.text}'
+                                    : 'Tap to select location on map',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: _latitudeController.text.isNotEmpty
+                                      ? const Color(0xFF1C1B1F)
+                                      : const Color(0xFF49454F),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right, size: 20, color: Color(0xFF79747E)),
+                      ],
+                    ),
+                  ),
+                ),
+                
                 const SizedBox(height: 24),
                 CrystalButton(
                   onPressed: _isSaving ? null : _saveBranch,

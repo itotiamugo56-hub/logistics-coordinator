@@ -53,6 +53,78 @@ class ApiClient {
     }
   }
   
+// ============================================================
+// Auth Endpoints (OTP Flow)
+// ============================================================
+
+/// Register new member (sends OTP to email)
+Future<Map<String, dynamic>> register(String email, String name) async {
+  final response = await http.post(
+    Uri.parse('$baseUrl/v1/auth/register'),
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode({
+      'email': email,
+      'name': name,
+    }),
+  );
+  
+  print('📝 Register response: ${response.statusCode} - ${response.body}');
+  
+  if (response.statusCode == 200) {
+    return jsonDecode(response.body);
+  } else if (response.statusCode == 409) {
+    throw Exception('Email already registered');
+  } else {
+    throw Exception('Registration failed: ${response.statusCode}');
+  }
+}
+
+/// Verify OTP and get access token
+Future<Map<String, dynamic>> verifyOtp(String memberId, String otp) async {
+  final response = await http.post(
+    Uri.parse('$baseUrl/v1/auth/verify'),
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode({
+      'member_id': memberId,
+      'otp': otp,
+    }),
+  );
+  
+  print('🔐 Verify response: ${response.statusCode} - ${response.body}');
+  
+  if (response.statusCode == 200) {
+    final data = jsonDecode(response.body);
+    await saveToken(data['access_token']);
+    return data;
+  } else if (response.statusCode == 401) {
+    throw Exception('Invalid OTP');
+  } else {
+    throw Exception('Verification failed: ${response.statusCode}');
+  }
+}
+
+/// Login for existing verified members (email + OTP)
+Future<Map<String, dynamic>> login(String email, String otp) async {
+  final response = await http.post(
+    Uri.parse('$baseUrl/v1/auth/login'),
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode({
+      'email': email,
+      'otp': otp,
+    }),
+  );
+  
+  print('🔑 Login response: ${response.statusCode} - ${response.body}');
+  
+  if (response.statusCode == 200) {
+    final data = jsonDecode(response.body);
+    await saveToken(data['access_token']);
+    return data;
+  } else {
+    throw Exception('Login failed: ${response.statusCode}');
+  }
+}
+  
   // ============================================================
   // Signal Flare (Anonymous-friendly)
   // ============================================================
@@ -84,7 +156,7 @@ class ApiClient {
       }),
     );
     
-    if (response.statusCode == 200) {
+    if (response.statusCode == 200 || response.statusCode == 201) {
       return jsonDecode(response.body);
     } else if (response.statusCode == 401) {
       await clearToken();

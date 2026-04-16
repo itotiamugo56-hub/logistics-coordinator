@@ -21,12 +21,14 @@ use handlers::{
     submit_flare, get_flare_status,
     find_nearby_branches,
     get_me, issue_token_handler,
-    login, create_branch,
+    login, register_member, verify_otp,
+    create_branch,
     update_branch, update_service_times,
     get_photos, add_photo, delete_photo,
     get_pickup_points, create_pickup_point, update_pickup_point, delete_pickup_point,
     get_events, create_event, delete_event,
     get_alerts, create_alert, delete_alert,
+    bootstrap_admin, create_regional_admin, create_branch_clergy, list_clergy,
 };
 
 #[tokio::main]
@@ -45,9 +47,19 @@ async fn main() {
     // Build router
     let app = Router::new()
         // ============================================================
+        // ADMIN ENDPOINTS (Protected - Role Based)
+        // ============================================================
+        .route("/v1/admin/bootstrap", post(bootstrap_admin))
+        .route("/v1/admin/create-regional", post(create_regional_admin))
+        .route("/v1/admin/create-clergy", post(create_branch_clergy))
+        .route("/v1/admin/clergy", get(list_clergy))
+        
+        // ============================================================
         // AUTHENTICATION ENDPOINTS
         // ============================================================
         .route("/v1/auth/login", post(login))
+        .route("/v1/auth/register", post(register_member))
+        .route("/v1/auth/verify", post(verify_otp))
         .route("/v1/auth/me", get(get_me))
         .route("/v1/auth/token/issue", post(issue_token_handler))
         

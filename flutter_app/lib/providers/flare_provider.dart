@@ -7,10 +7,12 @@ class FlareProvider extends ChangeNotifier {
   
   List<FlareModel> _flares = [];
   bool _isSubmitting = false;
+  bool _isLoading = false;
   String? _lastError;
   
   List<FlareModel> get flares => _flares;
   bool get isSubmitting => _isSubmitting;
+  bool get isLoading => _isLoading;
   String? get lastError => _lastError;
   
   Future<Map<String, dynamic>?> submitFlare({
@@ -53,6 +55,22 @@ class FlareProvider extends ChangeNotifier {
       }
     } catch (e) {
       // Silent fail for background refresh
+    }
+  }
+  
+  /// Refresh all flares for the authenticated user
+  Future<void> refreshAll() async {
+    _isLoading = true;
+    notifyListeners();
+    
+    try {
+      // TODO: Implement GET /v1/flare/my-flares endpoint
+      // For now, this is a placeholder
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 }

@@ -1,7 +1,7 @@
 pub mod jwt;
 pub mod roles;
 pub mod delegation;
-pub mod handlers;  // Add this line
+pub mod handlers;
 
 // Re-export commonly used types
 pub use jwt::{
@@ -10,3 +10,8 @@ pub use jwt::{
 };
 pub use roles::Role;
 pub use delegation::{DelegationProof, build_delegation_chain, verify_delegation_chain};
+
+// Re-export handler functions
+pub use handlers::{
+    login, register_member, verify_otp, get_me, issue_token_handler,
+};

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
-import 'home_screen.dart';
+import '../services/haptic_service.dart';
+import '../widgets/crystal_button.dart';
+import 'register_screen.dart';
+import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,101 +14,202 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _memberIdController = TextEditingController(text: '11111111-1111-1111-1111-111111111111');
-  final _roleController = TextEditingController(text: 'usher');
-  final _expiryController = TextEditingController(text: '3600');
+  final _emailController = TextEditingController();
+  final _otpController = TextEditingController();
+  bool _isLoading = false;
+  String? _error;
+  
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _otpController.dispose();
+    super.dispose();
+  }
+  
+  Future<void> _login() async {
+    final email = _emailController.text.trim();
+    final otp = _otpController.text.trim();
+    
+    if (email.isEmpty) {
+      setState(() => _error = 'Please enter your email');
+      HapticService.trigger(HapticIntensity.error, context: context);
+      return;
+    }
+    
+    if (otp.isEmpty) {
+      setState(() => _error = 'Please enter the OTP');
+      HapticService.trigger(HapticIntensity.error, context: context);
+      return;
+    }
+    
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.login(email, otp);
+    
+    setState(() {
+      _isLoading = false;
+      if (success) {
+        HapticService.trigger(HapticIntensity.light, context: context);
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        );
+      } else {
+        _error = authProvider.error;
+        HapticService.trigger(HapticIntensity.error, context: context);
+      }
+    });
+  }
   
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.security, size: 80, color: Colors.deepPurple),
-              const SizedBox(height: 24),
-              const Text(
-                'Zero-Trust Authentication',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 48),
-              TextFormField(
-                controller: _memberIdController,
-                decoration: const InputDecoration(
-                  labelText: 'Member ID (UUID)',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.person),
-                ),
-                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _roleController,
-                decoration: const InputDecoration(
-                  labelText: 'Role (usher, branch_coord, etc.)',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.verified),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _expiryController,
-                decoration: const InputDecoration(
-                  labelText: 'Expiry (seconds)',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.timer),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 32),
-              Consumer<AuthProvider>(
-                builder: (context, auth, _) {
-                  return ElevatedButton(
-                    onPressed: auth.isLoading ? null : () async {
-                      if (_formKey.currentState!.validate()) {
-                        final success = await auth.login(
-                          memberId: _memberIdController.text,
-                          role: _roleController.text,
-                          expiresInSeconds: int.parse(_expiryController.text),
-                        );
-                        
-                        if (success && mounted) {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (_) => const HomeScreen()),
-                          );
-                        } else if (auth.error != null && mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(auth.error!)),
-                          );
-                        }
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 50),
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Logo
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF6750A4), Color(0xFF7D5260)],
                     ),
-                    child: auth.isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Authenticate'),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () {
-                  // Show help dialog
-                },
-                child: const Text('Need help? Contact your branch coordinator'),
-              ),
-            ],
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.church,
+                    size: 48,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                
+                // Title
+                const Text(
+                  'Welcome Back',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Sign in to access all features',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF49454F),
+                  ),
+                ),
+                const SizedBox(height: 48),
+                
+                // Email Field
+                TextField(
+                  controller: _emailController,
+                  decoration: InputDecoration(
+                    labelText: 'Email Address',
+                    hintText: 'you@example.com',
+                    prefixIcon: const Icon(Icons.email_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                const SizedBox(height: 16),
+                
+                // OTP Field
+                TextField(
+                  controller: _otpController,
+                  decoration: InputDecoration(
+                    labelText: 'Verification Code',
+                    hintText: 'Enter 6-digit code',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Error message
+                if (_error != null)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFBA1A1A).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline, color: Color(0xFFBA1A1A), size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _error!,
+                            style: const TextStyle(color: Color(0xFFBA1A1A), fontSize: 13),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                
+                const SizedBox(height: 24),
+                
+                // Login Button
+                CrystalButton(
+                  onPressed: _login,
+                  label: 'SIGN IN',
+                  variant: CrystalButtonVariant.filled,
+                  isLoading: _isLoading,
+                  isExpanded: true,
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Register link
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text("Don't have an account? "),
+                    TextButton(
+                      onPressed: () {
+                        HapticService.trigger(HapticIntensity.light, context: context);
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                        );
+                      },
+                      child: const Text(
+                        'Sign Up',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

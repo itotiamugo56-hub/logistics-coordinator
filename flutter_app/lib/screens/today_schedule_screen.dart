@@ -213,6 +213,8 @@ class EventCard extends StatelessWidget {
                                 fontWeight: FontWeight.w600,
                                 color: M3Colors.onSurface,
                               ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
                             ),
                             if (event.distanceKm != null)
                               Row(
@@ -223,11 +225,15 @@ class EventCard extends StatelessWidget {
                                     color: M3Colors.onSurfaceVariant,
                                   ),
                                   const SizedBox(width: 4),
-                                  Text(
-                                    '${event.distanceKm!.toStringAsFixed(1)} km · ${event.walkingTime} walk',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: M3Colors.onSurfaceVariant,
+                                  Expanded(
+                                    child: Text(
+                                      '${event.distanceKm!.toStringAsFixed(1)} km · ${event.walkingTime} walk',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: M3Colors.onSurfaceVariant,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
                                     ),
                                   ),
                                 ],
@@ -294,6 +300,8 @@ class EventCard extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                       color: M3Colors.onSurface,
                     ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
                   ),
                   const SizedBox(height: 8),
                   
@@ -306,11 +314,15 @@ class EventCard extends StatelessWidget {
                         color: M3Colors.onSurfaceVariant,
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        event.formattedDate,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: M3Colors.onSurfaceVariant,
+                      Expanded(
+                        child: Text(
+                          event.formattedDate,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: M3Colors.onSurfaceVariant,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -320,11 +332,15 @@ class EventCard extends StatelessWidget {
                         color: M3Colors.onSurfaceVariant,
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        event.formattedTime,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: M3Colors.onSurfaceVariant,
+                      Expanded(
+                        child: Text(
+                          event.formattedTime,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: M3Colors.onSurfaceVariant,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
                       ),
                     ],
@@ -348,10 +364,10 @@ class EventCard extends StatelessWidget {
                   const Divider(height: 1),
                   const SizedBox(height: 12),
                   
-                  // Action buttons row
+                  // Action buttons row - FIXED: buttons now have Flexible + ellipsis
                   Row(
                     children: [
-                      Expanded(
+                      Flexible(
                         child: CrystalButton(
                           onPressed: () {
                             HapticService.trigger(HapticIntensity.medium, context: context);
@@ -363,7 +379,7 @@ class EventCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Expanded(
+                      Flexible(
                         child: CrystalButton(
                           onPressed: () {
                             HapticService.trigger(HapticIntensity.medium, context: context);
@@ -540,6 +556,8 @@ class EventDetailSheet extends StatelessWidget {
                                   fontSize: 20,
                                   fontWeight: FontWeight.w700,
                                 ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 2,
                               ),
                               const SizedBox(height: 4),
                               Text(
@@ -548,6 +566,8 @@ class EventDetailSheet extends StatelessWidget {
                                   fontSize: 14,
                                   color: M3Colors.onSurfaceVariant,
                                 ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
                               ),
                               if (event.distanceKm != null)
                                 Text(
@@ -645,6 +665,7 @@ class EventDetailSheet extends StatelessWidget {
                           Icons.location_on_outlined,
                           'Branch Address',
                           event.branchAddress,
+                          isMultiline: true,
                         ),
                       ],
                     ),

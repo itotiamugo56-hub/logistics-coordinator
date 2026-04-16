@@ -74,12 +74,16 @@ class CrystalButton extends StatelessWidget {
             ),
           )
         else
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: MotionTokens.fontSizeScale[2],
-              fontWeight: MotionTokens.fontWeightSemiBold,
-              color: getForegroundColor(),
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: MotionTokens.fontSizeScale[2],
+                fontWeight: MotionTokens.fontWeightSemiBold,
+                color: getForegroundColor(),
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
           ),
       ],

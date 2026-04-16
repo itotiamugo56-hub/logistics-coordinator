@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
 import '../providers/flare_provider.dart';
 import '../services/haptic_service.dart';
+import '../services/api_client.dart';
 import '../widgets/crystal_button.dart';
 import '../widgets/physics_sheet.dart';
 import '../widgets/skeleton_loader.dart';
@@ -577,7 +578,7 @@ class LogoutDialog extends StatelessWidget {
   }
 }
 
-/// Main Profile Screen - Stripe/Apple Grade
+/// Main Profile Screen - Stripe/Apple Grade with Real Auth Data
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -586,12 +587,13 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  String _memberName = 'Verified Member';
-  String _memberEmail = 'member@repentance.org';
+  String _memberName = '';
+  String _memberEmail = '';
   bool _isVerified = true;
   int _flareCount = 0;
   int _branchesVisited = 0;
   bool _isLoading = true;
+  bool _isAuthenticated = false;
 
   @override
   void initState() {
@@ -602,23 +604,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadUserData() async {
     setState(() => _isLoading = true);
     
-    // Load from AuthProvider
     final authProvider = context.read<AuthProvider>();
     final flareProvider = context.read<FlareProvider>();
     
-    // Simulate loading delay for skeleton demo
-    await Future.delayed(const Duration(milliseconds: 500));
+    // Check if user is authenticated
+    _isAuthenticated = authProvider.isAuthenticated;
     
-    // AuthProvider doesn't have name/email - use default values
-    // In production, these would come from a User model or API
-    setState(() {
-      _memberName = 'Verified Member';
-      _memberEmail = 'member@repentance.org';
-      _flareCount = flareProvider.flares.length;
-      // TODO: Load branches visited from API
-      _branchesVisited = 5;
-      _isLoading = false;
-    });
+    if (_isAuthenticated) {
+      // Use real data from auth provider
+      setState(() {
+        _memberName = authProvider.name ?? 'Verified Member';
+        _memberEmail = authProvider.email ?? 'member@repentance.org';
+        _flareCount = flareProvider.flares.length;
+        _branchesVisited = 5; // TODO: Load from API when available
+        _isVerified = true;
+        _isLoading = false;
+      });
+    } else {
+      // Not authenticated - show empty state or redirect
+      setState(() {
+        _memberName = 'Guest User';
+        _memberEmail = 'Not signed in';
+        _flareCount = 0;
+        _branchesVisited = 0;
+        _isVerified = false;
+        _isLoading = false;
+      });
+    }
   }
 
   void _showHelpResources() {
@@ -629,6 +641,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showMyFlares() {
+    if (!_isAuthenticated) {
+      // Show login sheet or navigate to login
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please sign in to view your flares')),
+      );
+      return;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const MyFlaresScreen()),
@@ -641,6 +660,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       barrierDismissible: true,
       builder: (context) => const LogoutDialog(),
     );
+  }
+
+  void _navigateToLogin() {
+    Navigator.pushReplacementNamed(context, '/login');
   }
 
   @override
@@ -656,6 +679,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
         foregroundColor: M3Colors.onSurface,
         elevation: 0,
         centerTitle: false,
+        actions: [
+          if (!_isAuthenticated && !_isLoading)
+            TextButton(
+              onPressed: _navigateToLogin,
+              child: const Text(
+                'Sign In',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: M3Colors.primary,
+                ),
+              ),
+            ),
+        ],
       ),
       body: _isLoading
           ? CustomScrollView(
@@ -720,19 +757,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 color: M3Colors.surface,
                                 shape: BoxShape.circle,
                               ),
-                              child: const CircleAvatar(
+                              child: CircleAvatar(
                                 radius: 45,
                                 backgroundColor: M3Colors.primaryContainer,
-                                child: Icon(
-                                  Icons.person,
-                                  size: 50,
-                                  color: M3Colors.primary,
+                                child: Text(
+                                  _memberName.isNotEmpty ? _memberName[0].toUpperCase() : '?',
+                                  style: const TextStyle(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.w600,
+                                    color: M3Colors.primary,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                           const SizedBox(height: 12),
-                          // Name
+                          // Name - Real data
                           Text(
                             _memberName,
                             style: const TextStyle(
@@ -742,7 +782,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           ),
                           const SizedBox(height: 6),
-                          // Email
+                          // Email - Real data
                           Text(
                             _memberEmail,
                             style: TextStyle(
@@ -759,7 +799,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   
-                  // Stats Card
+                  // Stats Card - Real data
                   SliverToBoxAdapter(
                     child: StatsCard(
                       flareCount: _flareCount,
@@ -843,19 +883,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   
                   const SliverToBoxAdapter(child: SizedBox(height: 8)),
                   
-                  // Logout Button
-                  SliverToBoxAdapter(
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: CrystalButton(
-                        onPressed: _showLogoutDialog,
-                        label: 'SIGN OUT',
-                        variant: CrystalButtonVariant.outlined,
-                        icon: Icons.logout,
-                        isExpanded: true,
+                  // Logout Button (only when authenticated)
+                  if (_isAuthenticated)
+                    SliverToBoxAdapter(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: CrystalButton(
+                          onPressed: _showLogoutDialog,
+                          label: 'SIGN OUT',
+                          variant: CrystalButtonVariant.outlined,
+                          icon: Icons.logout,
+                          isExpanded: true,
+                        ),
                       ),
                     ),
-                  ),
+                  
+                  // Sign In Button (when not authenticated)
+                  if (!_isAuthenticated)
+                    SliverToBoxAdapter(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: CrystalButton(
+                          onPressed: _navigateToLogin,
+                          label: 'SIGN IN',
+                          variant: CrystalButtonVariant.filled,
+                          icon: Icons.login,
+                          isExpanded: true,
+                        ),
+                      ),
+                    ),
                   
                   const SliverToBoxAdapter(child: SizedBox(height: 32)),
                 ],

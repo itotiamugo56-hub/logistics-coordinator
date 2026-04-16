@@ -13,6 +13,7 @@ class Branch {
   final String? announcement;
   final bool isVerified;
   final DateTime lastUpdated;
+  final String? branchClergyId;  // NEW: Links branch to assigned clergy
   
   Branch({
     required this.id,
@@ -27,6 +28,7 @@ class Branch {
     this.announcement,
     required this.isVerified,
     required this.lastUpdated,
+    this.branchClergyId,  // NEW: Optional field
   });
   
   factory Branch.fromJson(Map<String, dynamic> json) {
@@ -45,6 +47,7 @@ class Branch {
       announcement: json['announcement'],
       isVerified: json['is_verified'],
       lastUpdated: DateTime.fromMillisecondsSinceEpoch(json['last_updated'] * 1000),
+      branchClergyId: json['branch_clergy_id'],  // NEW
     );
   }
   

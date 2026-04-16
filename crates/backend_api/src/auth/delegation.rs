@@ -2,7 +2,7 @@
 
 use serde::{Serialize, Deserialize};
 use uuid::Uuid;
-use super::roles::Role;
+use crate::auth::roles::Role;
 use super::jwt::AuthError;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

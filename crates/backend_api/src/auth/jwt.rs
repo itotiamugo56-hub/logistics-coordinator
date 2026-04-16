@@ -11,7 +11,7 @@ use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 use std::collections::HashSet;
 
-use super::roles::Role;
+use crate::auth::roles::Role;
 use super::delegation::{DelegationProof, verify_delegation_chain};
 
 // ============================================================
@@ -86,22 +86,19 @@ pub struct TokenClaims {
 // ============================================================
 // Token Lifetime by Role
 // ============================================================
-
 pub fn token_lifetime(role: &Role) -> i64 {
     match role {
         Role::GlobalAdmin => 604800,     // 7 days
         Role::RegionalAdmin => 604800,   // 7 days
-        Role::BranchPastor => 259200,    // 3 days
-        Role::BranchStaff => 86400,      // 1 day
+        Role::BranchClergy => 259200,    // 3 days
         Role::VerifiedMember => 43200,   // 12 hours
     }
 }
 
+
 // ============================================================
 // JWT Issuance
 // ============================================================
-
-/// Issue a new JWT token for a member
 pub fn issue_token(
     member_id: Uuid,
     role: Role,

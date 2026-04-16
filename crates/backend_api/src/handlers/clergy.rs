@@ -176,7 +176,7 @@ pub async fn login(
 }
 
 // ============================================================
-// Branch Creation Handler
+// Branch Creation Handler - UPDATED with is_verified = 1 and branch_clergy_id
 // ============================================================
 
 pub async fn create_branch(
@@ -192,12 +192,18 @@ pub async fn create_branch(
     let email = req.email.as_deref().unwrap_or("");
     let service_times = req.service_times.clone().unwrap_or(serde_json::json!({}));
     
+    // Note: branch_clergy_id will be set by the caller (the authenticated clergy's ID)
+    // For now, we leave it as empty string; the caller should update it after creation
+    let branch_clergy_id = "";
+    
     let result = conn.execute(
-        "INSERT INTO branches (id, name, address, latitude, longitude, senior_pastor, phone, email, service_times, created_at, updated_at, is_active)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10, 1)",
+        "INSERT INTO branches (id, name, address, latitude, longitude, senior_pastor, phone, email, 
+                               service_times, is_verified, branch_clergy_id, created_at, updated_at, last_updated)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 1, ?10, ?11, ?11, ?11)",
         [
             &id, &req.name, &req.address, &req.latitude.to_string(), &req.longitude.to_string(),
-            &req.senior_pastor, phone, email, &service_times.to_string(), &now_str
+            &req.senior_pastor, phone, email, &service_times.to_string(),
+            branch_clergy_id, &now_str
         ],
     );
     

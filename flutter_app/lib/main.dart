@@ -4,6 +4,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'screens/map_screen.dart';
 import 'screens/ui_ux_test_screen.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/register_screen.dart';
+import 'screens/admin_dashboard_screen.dart';
+import 'screens/clergy_login_screen.dart';
+import 'screens/clergy_dashboard_screen.dart';
 import 'providers/clergy_auth_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/flare_provider.dart';
@@ -86,6 +91,11 @@ class _MinistryOfRepentanceAppState extends State<MinistryOfRepentanceApp> {
                     '/': (context) => const DashboardScreen(),
                     '/map': (context) => const MapScreen(),
                     '/ui-test': (context) => const UiUxTestScreen(),
+                    '/login': (context) => const LoginScreen(),
+                    '/register': (context) => const RegisterScreen(),
+                    '/admin': (context) => const AdminDashboardScreen(),
+                    '/clergy-login': (context) => const ClergyLoginScreen(),
+                    '/clergy': (context) => const ClergyDashboardScreen(),
                   },
                 );
               },
