@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: zero-trust-backend
+    runtime: image
+    repo: https://github.com/YOUR_USERNAME/zero-trust-logistics
+    buildCommand: |
+      curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+      source "$HOME/.cargo/env"
+      cargo build --release --workspace
+    startCommand: ./target/release/backend_server
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: zero-trust-db
+          property: connectionString
